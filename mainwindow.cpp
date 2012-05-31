@@ -1,6 +1,6 @@
 #include "mainwindow.h"
 
-#include <QFile>
+#include "file.h"
 #include <QFileDialog>
 #include <QMessageBox>
 
@@ -76,14 +76,19 @@ void MainWindow::fileOpen(QString fileName)
 
     if(fileName.isNull()) {
         fileName = QFileDialog::getOpenFileName(this, tr("Open Measurement File"), fileName, tr("Measurement Files (*.bin)"));
+        if(fileName.isNull())
+            return;
     }
 
-    push2Log(QString("Try to open file \"%1\".").arg(fileName), Qt::lightGray);
-
-    file = new QFile(fileName, this);
+    file = new File(fileName, this);
     if(!file->open(QIODevice::ReadOnly)) {
         push2Log(QString("Unable to open File \"%1\" in readonly-mode.").arg(fileName), Qt::lightGray);
+        delete file;
+        file = 0;
+        return;
     }
+
+    push2Log(QString("Open file \"%1\" successfully in read-only mode.").arg(fileName), Qt::lightGray);
 }
 
 void MainWindow::fileClose()

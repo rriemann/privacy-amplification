@@ -7,7 +7,7 @@
 
 #include "client.h"
 
-class QFile;
+class File;
 
 class MainWindow : public QMainWindow, private Ui::MainWindow
 {
@@ -24,7 +24,7 @@ private:
     QLabel *labelPort;
     Client client;
 
-    QFile *file;
+    File *file;
 
 private slots:
     void connectClicked();
