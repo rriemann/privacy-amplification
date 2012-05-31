@@ -22,19 +22,23 @@ void Connection::receiveData()
     if (this->bytesAvailable() < blockSize)
         return;
 
+    quint16 type;
+    in >> type;
+
     QVariant data;
     in >> data;
-    emit receivedData(data);
+    emit receivedData((PackageType)type, data);
     blockSize = 0;
 
 }
 
-void Connection::sendData(const QVariant &data)
+void Connection::sendData(const PackageType type, const QVariant &data)
 {
     QByteArray block;
     QDataStream out(&block, QIODevice::WriteOnly);
     out.setVersion(streamVersion);
     out << (quint16)0;
+    out << (quint16)type;
     out << data;
     out.device()->seek(0);
     out << (quint16)(block.size() - sizeof(quint16));

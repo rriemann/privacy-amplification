@@ -2,6 +2,7 @@
 #define CLIENT_H
 
 #include "server.h"
+#include "connection.h"
 
 class Client : public QObject
 {
@@ -13,7 +14,9 @@ public:
     
 signals:
     void establishedConnection();
+    void closedConnection();
     void logMessage(QString entry, Qt::GlobalColor backgroundColor = Qt::white);
+    void receivedRole(bool isMaster);
     
 public slots:
     void initiateConnection(QString host, int port, bool isMaster);
@@ -23,14 +26,14 @@ private slots:
     void removeConnection();
     void startHandShake();
     void wait4HandShake();
-    void handleData(QVariant data);
+    void handleData(Connection::PackageType type, QVariant data);
 
 private:
 
     enum ConnectionState {
-        Unconnected,
-        InitiatedConnection,
-        Wait4Handshake
+        CSunconnected,
+        CSinitiatedConnection,
+        CSwait4Handshake
     };
 
     Server server;

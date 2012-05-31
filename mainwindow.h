@@ -24,6 +24,8 @@ private:
 private slots:
     void connectClicked();
     void push2Log(QString entry, Qt::GlobalColor backgroundColor = Qt::white);
+    void establishedConnection();
+    void closedConnection();
 };
 
 #endif // MAINWINDOW_H
