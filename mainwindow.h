@@ -25,15 +25,21 @@ private:
     Client client;
 
     File *file;
+    bool connectionEstablished;
+    bool isMaster;
 
 private slots:
     void connectClicked();
     void push2Log(QString entry, Qt::GlobalColor backgroundColor = Qt::white);
-    void establishedConnection();
+    void establishedConnection(bool isMaster);
     void closedConnection();
 
-    void fileOpen(QString fileName = QString());
     void fileClose();
+    void processStart();
+    void processStop();
+
+public slots:
+    void fileOpen(QString fileName = QString());
 };
 
 #endif // MAINWINDOW_H

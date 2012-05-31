@@ -11,7 +11,7 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp \
+    mainwindow.cpp \
     client.cpp \
     server.cpp \
     connection.cpp \
@@ -21,6 +21,7 @@ HEADERS  += mainwindow.h \
     client.h \
     server.h \
     connection.h \
-    file.h
+    file.h \
+    measurement.h
 
 FORMS    += mainwindow.ui

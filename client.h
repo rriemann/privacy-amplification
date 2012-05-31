@@ -13,17 +13,17 @@ public:
     ~Client();
     
 signals:
-    void establishedConnection();
+    void establishedConnection(bool isMaster);
     void closedConnection();
     void logMessage(QString entry, Qt::GlobalColor backgroundColor = Qt::white);
     void receivedRole(bool isMaster);
     
 public slots:
     void initiateConnection(QString host, int port, bool isMaster);
+    void removeConnection();
 
 private slots:
     void incomingConnection(Connection *incomingConnection);
-    void removeConnection();
     void startHandShake();
     void wait4HandShake();
     void handleData(Connection::PackageType type, QVariant data);
