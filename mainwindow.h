@@ -15,7 +15,7 @@ public:
     explicit MainWindow(QWidget *parent = 0);
 
 signals:
-    void initiateConnection(QString adress, int port);
+    void initiateConnection(QString adress, int port, bool isMaster);
 
 private:
     QLabel *labelPort;

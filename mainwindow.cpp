@@ -11,14 +11,14 @@ MainWindow::MainWindow(QWidget *parent) :
     push2Log(QString("Server started at port %1").arg(client.getServerPort()), Qt::yellow);
 
     connect(pushButtonConnect, SIGNAL(clicked()), this, SLOT(connectClicked()));
-    connect(this, SIGNAL(initiateConnection(QString,int)), &client, SLOT(initiateConnection(QString,int)));
+    connect(this, SIGNAL(initiateConnection(QString,int,bool)), &client, SLOT(initiateConnection(QString,int,bool)));
 
     connect(&client, SIGNAL(logMessage(QString,Qt::GlobalColor)), this, SLOT(push2Log(QString,Qt::GlobalColor)));
 }
 
 void MainWindow::connectClicked()
 {
-    emit initiateConnection(lineEditAdress->text(), lineEditPort->text().toInt());
+    emit initiateConnection(lineEditAdress->text(), lineEditPort->text().toInt(), checkBoxMaster->isChecked());
 }
 
 void MainWindow::push2Log(QString entry, Qt::GlobalColor backgroundColor)
@@ -27,4 +27,5 @@ void MainWindow::push2Log(QString entry, Qt::GlobalColor backgroundColor)
     item->setBackgroundColor(QColor(backgroundColor));
     item->setText(entry);
     listWidgetLog->addItem(item);
+    listWidgetLog->scrollToBottom();
 }

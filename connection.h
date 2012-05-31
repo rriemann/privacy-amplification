@@ -10,12 +10,18 @@ public:
     explicit Connection(QObject *parent = 0);
     
 signals:
+    void logMessage(QString entry, Qt::GlobalColor backgroundColor = Qt::white);
+    void receivedData(QVariant data);
     
 public slots:
-    void startHandShake();
-    void wait4HandShake();
+    void receiveData();
+    void sendData(const QVariant& data);
 
 private slots:
+
+private:
+    quint16 blockSize;
+    static const QDataStream::Version streamVersion;
     
 };
 
