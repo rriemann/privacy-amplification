@@ -19,7 +19,14 @@ public:
 
     enum PackageType {
         PTtextMessage = 0,
-        PThaveFile
+        PThaveFile,
+        PTask4File
+    };
+
+    enum ConnectionState {
+        CSready,
+        CScontinueProcess,
+        CSprocessing
     };
 
 signals:
@@ -32,6 +39,8 @@ private:
     File *file;
     bool connectionEstablished;
     bool isMaster;
+    bool clientReady; // file loaded
+    ConnectionState state;
 
 private slots:
     void connectClicked();

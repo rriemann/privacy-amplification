@@ -17,12 +17,12 @@ signals:
     void closedConnection();
     void logMessage(QString entry, Qt::GlobalColor backgroundColor = Qt::white);
     void receivedRole(bool isMaster);
-    void receiveData(quint8 type, QVariant data);
+    void receiveData(quint8 type, QVariant data = QVariant());
     
 public slots:
     void initiateConnection(QString host, int port, bool isMaster);
     void removeConnection();
-    void sendData(quint8 type, QVariant data);
+    void sendData(quint8 type, QVariant data = QVariant());
 
 private slots:
     void incomingConnection(Connection *incomingConnection);

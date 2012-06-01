@@ -6,7 +6,7 @@
 #include <QTime>
 
 MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent), file(0), connectionEstablished(false)
+    QMainWindow(parent), file(0), connectionEstablished(false), clientReady(false), state(CSready)
 {
     setupUi(this);
     labelPort = new QLabel(this);
@@ -67,6 +67,7 @@ void MainWindow::logMessage(QString entry, Qt::GlobalColor backgroundColor)
 void MainWindow::establishedConnection(bool isMaster)
 {
     connectionEstablished = true;
+
     actionDisconnect->setEnabled(true);
     actionConnect->setEnabled(false);
 
@@ -80,12 +81,16 @@ void MainWindow::establishedConnection(bool isMaster)
     if(file) {
         actionStart->setEnabled(isMaster);
         actionReset->setEnabled(true);
+
+        actionClose->setEnabled(false);
     }
 }
 
 void MainWindow::closedConnection()
 {
     connectionEstablished = false;
+    clientReady = false;
+    state = CSready;
     actionDisconnect->setEnabled(false);
     actionConnect->setEnabled(true);
 
@@ -109,7 +114,16 @@ void MainWindow::incomingData(quint8 type, QVariant data)
     }
         break;
     case PThaveFile: {
-        logMessage(QString("client has %1file.").arg(data.toBool() ? QString() : QString("not ")), Qt::yellow);
+        clientReady = data.toBool();
+        logMessage(QString("client has %1file.").arg(clientReady ? QString() : QString("not ")), Qt::yellow);
+        if(state == CScontinueProcess) {
+            processStart();
+        }
+
+    }
+        break;
+    case PTask4File: {
+        sendHaveFile();
     }
         break;
     }
@@ -152,7 +166,11 @@ void MainWindow::fileOpen(QString fileName)
 
     actionConnect->setEnabled(true);
 
-    sendHaveFile();
+    if(connectionEstablished) {
+        sendHaveFile();
+
+        actionStart->setEnabled(isMaster);
+    }
 }
 
 void MainWindow::fileClose()
@@ -172,13 +190,24 @@ void MainWindow::fileClose()
 
     actionConnect->setEnabled(false);
 
-    sendHaveFile();
+    if(connectionEstablished)
+        sendHaveFile();
 }
 
 void MainWindow::processStart()
 {
+    actionStart->setEnabled(false);
+    if(!clientReady) {
+        client.sendData(PTask4File);
+        state = CScontinueProcess;
+        return;
+    }
+    logMessage("here we go");
+    state = CSprocessing;
 }
 
 void MainWindow::processStop()
 {
+    actionStart->setEnabled(true);
+    state = CSready;
 }

@@ -58,9 +58,9 @@ void Client::handleData(Connection::PackageType type, QVariant data)
         QString text = QString("client confirmed role to be %1.").arg(((data.toBool()) ? "master" : "slave"));
         logMessage(text, Qt::yellow);
 
-        emit establishedConnection(isMaster);
-
         status = CSready;
+
+        emit establishedConnection(isMaster);
     }
         break;
     case CSwait4Handshake: // reveiving now the awaited handshake
@@ -71,12 +71,9 @@ void Client::handleData(Connection::PackageType type, QVariant data)
         logMessage(text, Qt::yellow);
 
         connection->sendData(Connection::PTroleDefinition, isMaster);
+        status = CSready;
 
         emit establishedConnection(isMaster);
-
-
-
-        status = CSready;
     }
         break;
     default:
