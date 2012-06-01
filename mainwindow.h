@@ -17,6 +17,11 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
+    enum PackageType {
+        PTtextMessage = 0,
+        PThaveFile
+    };
+
 signals:
     void initiateConnection(QString adress, int port, bool isMaster);
 
@@ -30,9 +35,12 @@ private:
 
 private slots:
     void connectClicked();
-    void push2Log(QString entry, Qt::GlobalColor backgroundColor = Qt::white);
+    void logMessage(QString entry, Qt::GlobalColor backgroundColor = Qt::white);
     void establishedConnection(bool isMaster);
     void closedConnection();
+    void incomingData(quint8 type, QVariant data);
+    void sendTextMessage();
+    inline void sendHaveFile() {client.sendData(PThaveFile, (bool)file);}
 
     void fileClose();
     void processStart();

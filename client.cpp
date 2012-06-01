@@ -1,6 +1,10 @@
 #include "client.h"
 #include "mainwindow.h"
 
+typedef QPair<quint8,QVariant> CustomPackage;
+Q_DECLARE_METATYPE(CustomPackage)
+static int id1 = qRegisterMetaType<CustomPackage>();
+static int id2 = qRegisterMetaTypeStreamOperators<CustomPackage>();
 
 Client::Client(QObject *parent) :
     QObject(parent), connection(0), isMaster(false), status(CSunconnected)
@@ -43,18 +47,8 @@ void Client::incomingConnection(Connection *incomingConnection)
     }
 }
 
-void Client::wait4HandShake()
-{
-    QByteArray message = connection->readAll();
-    connection->write(message);
-    emit logMessage(message);
-
-}
-
 void Client::handleData(Connection::PackageType type, QVariant data)
 {
-    Q_UNUSED(type);
-
     switch(status) {
     case CSunconnected:
         emit logMessage("Received unexpected incoming data", Qt::red);
@@ -65,6 +59,8 @@ void Client::handleData(Connection::PackageType type, QVariant data)
         logMessage(text, Qt::yellow);
 
         emit establishedConnection(isMaster);
+
+        status = CSready;
     }
         break;
     case CSwait4Handshake: // reveiving now the awaited handshake
@@ -77,8 +73,19 @@ void Client::handleData(Connection::PackageType type, QVariant data)
         connection->sendData(Connection::PTroleDefinition, isMaster);
 
         emit establishedConnection(isMaster);
+
+
+
+        status = CSready;
     }
         break;
+    default:
+    {
+        if(type == Connection::PTcustomData) {
+            CustomPackage package(data.value<CustomPackage>());
+            emit receiveData(package.first, package.second);
+        }
+    }
     }
 }
 
@@ -110,4 +117,14 @@ void Client::removeConnection()
     connection = 0;
     status = CSunconnected;
     emit closedConnection();
+}
+
+void Client::sendData(quint8 type, QVariant data)
+{
+    if(connection && status == CSready) {
+        CustomPackage package(type, data);
+        connection->sendData(Connection::PTcustomData, QVariant::fromValue(package));
+    } else {
+        emit logMessage("Not ready for sending data.");
+    }
 }

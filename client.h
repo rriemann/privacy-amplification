@@ -17,15 +17,16 @@ signals:
     void closedConnection();
     void logMessage(QString entry, Qt::GlobalColor backgroundColor = Qt::white);
     void receivedRole(bool isMaster);
+    void receiveData(quint8 type, QVariant data);
     
 public slots:
     void initiateConnection(QString host, int port, bool isMaster);
     void removeConnection();
+    void sendData(quint8 type, QVariant data);
 
 private slots:
     void incomingConnection(Connection *incomingConnection);
     void startHandShake();
-    void wait4HandShake();
     void handleData(Connection::PackageType type, QVariant data);
 
 private:
@@ -33,7 +34,8 @@ private:
     enum ConnectionState {
         CSunconnected,
         CSinitiatedConnection,
-        CSwait4Handshake
+        CSwait4Handshake,
+        CSready
     };
 
     Server server;

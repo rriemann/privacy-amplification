@@ -6,12 +6,12 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>441</width>
-    <height>354</height>
+    <width>579</width>
+    <height>422</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>QKD Client</string>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -57,6 +57,11 @@
     </item>
     <item>
      <widget class="QListWidget" name="listWidgetLog">
+      <property name="font">
+       <font>
+        <family>Monospace</family>
+       </font>
+      </property>
       <property name="editTriggers">
        <set>QAbstractItemView::NoEditTriggers</set>
       </property>
@@ -75,7 +80,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>441</width>
+     <width>579</width>
      <height>20</height>
     </rect>
    </property>
@@ -209,6 +214,9 @@
    <property name="text">
     <string>&amp;Connect</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
+   </property>
   </action>
   <action name="actionDisconnect">
    <property name="enabled">
@@ -221,6 +229,9 @@
    </property>
    <property name="text">
     <string>&amp;Disconnect</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
    </property>
   </action>
  </widget>

@@ -3,6 +3,7 @@
 #include "file.h"
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QTime>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent), file(0), connectionEstablished(false)
@@ -12,15 +13,16 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow::statusBar()->addPermanentWidget(labelPort);
 
     labelPort->setText(QString("Listening on port %1").arg(client.getServerPort()));
-    push2Log(QString("Server started at port %1").arg(client.getServerPort()), Qt::yellow);
+    logMessage(QString("Server started at port %1").arg(client.getServerPort()), Qt::yellow);
 
     connect(this, SIGNAL(initiateConnection(QString,int,bool)), &client, SLOT(initiateConnection(QString,int,bool)));
     connect(&client, SIGNAL(receivedRole(bool)), checkBoxMaster, SLOT(setChecked(bool)));
 
-    connect(&client, SIGNAL(logMessage(QString,Qt::GlobalColor)), this, SLOT(push2Log(QString,Qt::GlobalColor)));
+    connect(&client, SIGNAL(logMessage(QString,Qt::GlobalColor)), this, SLOT(logMessage(QString,Qt::GlobalColor)));
 
     connect(&client, SIGNAL(establishedConnection(bool)), this, SLOT(establishedConnection(bool)));
     connect(&client, SIGNAL(closedConnection()), this, SLOT(closedConnection()));
+    connect(&client, SIGNAL(receiveData(quint8,QVariant)), this, SLOT(incomingData(quint8,QVariant)));
 
 
     connect(actionConnect, SIGNAL(triggered()), this, SLOT(connectClicked()));
@@ -29,6 +31,10 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(actionOpen, SIGNAL(triggered()), this, SLOT(fileOpen()));
     connect(actionStart, SIGNAL(triggered()), this, SLOT(processStart()));
     connect(actionReset, SIGNAL(triggered()), this, SLOT(processStop()));
+
+    connect(lineEdit, SIGNAL(returnPressed()), this, SLOT(sendTextMessage()));
+    connect(lineEditAdress, SIGNAL(returnPressed()), this, SLOT(connectClicked()));
+    connect(lineEditPort, SIGNAL(returnPressed()), this, SLOT(connectClicked()));
 }
 
 MainWindow::~MainWindow()
@@ -49,11 +55,11 @@ void MainWindow::connectClicked()
     emit initiateConnection(lineEditAdress->text(), lineEditPort->text().toInt(), checkBoxMaster->isChecked());
 }
 
-void MainWindow::push2Log(QString entry, Qt::GlobalColor backgroundColor)
+void MainWindow::logMessage(QString entry, Qt::GlobalColor backgroundColor)
 {
     QListWidgetItem* item = new QListWidgetItem(listWidgetLog);
     item->setBackgroundColor(QColor(backgroundColor));
-    item->setText(entry);
+    item->setText(QTime::currentTime().toString("hh:mm:ss> ") + entry);
     listWidgetLog->addItem(item);
     listWidgetLog->scrollToBottom();
 }
@@ -95,6 +101,26 @@ void MainWindow::closedConnection()
     checkBoxMaster->setEnabled(true);
 }
 
+void MainWindow::incomingData(quint8 type, QVariant data)
+{
+    switch((PackageType)type) {
+    case PTtextMessage: {
+        logMessage(data.toString(), Qt::magenta);
+    }
+        break;
+    case PThaveFile: {
+        logMessage(QString("client has %1file.").arg(data.toBool() ? QString() : QString("not ")), Qt::yellow);
+    }
+        break;
+    }
+}
+
+void MainWindow::sendTextMessage()
+{
+    client.sendData(PTtextMessage, lineEdit->text());
+    lineEdit->setText(QString());
+}
+
 void MainWindow::fileOpen(QString fileName)
 {
     if(file) {
@@ -113,36 +139,40 @@ void MainWindow::fileOpen(QString fileName)
 
     file = new File(fileName, this);
     if(!file->open(QIODevice::ReadOnly)) {
-        push2Log(QString("Unable to open File \"%1\" in readonly-mode.").arg(fileName), Qt::lightGray);
+        logMessage(QString("Unable to open File \"%1\" in readonly-mode.").arg(fileName), Qt::lightGray);
         delete file;
         file = 0;
         return;
     }
 
-    push2Log(QString("Open file \"%1\" successfully in read-only mode.").arg(fileName), Qt::lightGray);
+    logMessage(QString("Open file \"%1\" successfully in read-only mode.").arg(fileName), Qt::lightGray);
 
     actionOpen->setEnabled(false);
     actionClose->setEnabled(true);
 
     actionConnect->setEnabled(true);
+
+    sendHaveFile();
 }
 
 void MainWindow::fileClose()
 {
     processStop();
 
-    actionOpen->setEnabled(true);
-    actionClose->setEnabled(false);
-
-    actionConnect->setEnabled(false);
-
     if(file) {
         file->close();
         delete file;
         file = 0;
 
-        push2Log(QString("File has been closed."), Qt::lightGray);
+        logMessage(QString("File has been closed."), Qt::lightGray);
     }
+
+    actionOpen->setEnabled(true);
+    actionClose->setEnabled(false);
+
+    actionConnect->setEnabled(false);
+
+    sendHaveFile();
 }
 
 void MainWindow::processStart()

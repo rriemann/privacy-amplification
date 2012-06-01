@@ -10,7 +10,9 @@ public:
 
     enum PackageType {
         PTroleDefinition,
-        PTlogMessage
+        PTchatMessage,
+        PThasFile,
+        PTcustomData
     };
 
     explicit Connection(QObject *parent = 0);
