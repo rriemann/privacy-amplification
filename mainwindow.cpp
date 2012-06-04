@@ -16,13 +16,16 @@ MainWindow::MainWindow(QWidget *parent) :
     logMessage(QString("Server started at port %1").arg(client.getServerPort()), Qt::yellow);
 
     connect(this, SIGNAL(initiateConnection(QString,int,bool)), &client, SLOT(initiateConnection(QString,int,bool)));
-    connect(&client, SIGNAL(receivedRole(bool)), checkBoxMaster, SLOT(setChecked(bool)));
 
     connect(&client, SIGNAL(logMessage(QString,Qt::GlobalColor)), this, SLOT(logMessage(QString,Qt::GlobalColor)));
 
     connect(&client, SIGNAL(establishedConnection(bool)), this, SLOT(establishedConnection(bool)));
     connect(&client, SIGNAL(closedConnection()), this, SLOT(closedConnection()));
     connect(&client, SIGNAL(receiveData(quint8,QVariant)), this, SLOT(incomingData(quint8,QVariant)));
+
+    // connect(&qkdp, SIGNAL(logMessage(QString,Qt::GlobalColor)), this, SLOT(logMessage(QString,Qt::GlobalColor)));
+    connect(&client, SIGNAL(receiveData(quint8,QVariant)), &qkdp, SLOT(incomingData(quint8,QVariant)));
+    // connect(&qkdp, SIGNAL(sendData(quint8,QVariant)), &client, SLOT(sendData(quint8,QVariant)));
 
 
     connect(actionConnect, SIGNAL(triggered()), this, SLOT(connectClicked()));
@@ -127,10 +130,22 @@ void MainWindow::incomingData(quint8 type, QVariant data)
     }
         break;
     }
+
+    /*
+    if(type == (quint8)QKDProcessor::PTprepareQKDProcessor && file) {
+        state = CSprocessing;
+
+        qkdp.setMeasurements(file->getMeasurements(isMaster));
+        qkdp.start(isMaster);
+        logMessage("QKD Processor started");
+
+    }
+    */
 }
 
 void MainWindow::sendTextMessage()
 {
+    logMessage(lineEdit->text(), Qt::cyan);
     client.sendData(PTtextMessage, lineEdit->text());
     lineEdit->setText(QString());
 }
@@ -202,8 +217,14 @@ void MainWindow::processStart()
         state = CScontinueProcess;
         return;
     }
-    logMessage("here we go");
     state = CSprocessing;
+
+    static int i = 95;
+    client.sendData(i++);
+    // qkdp.setMeasurements(file->getMeasurements(isMaster));
+    // client.sendData(QKDProcessor::PTprepareQKDProcessor);
+    // qkdp.start(isMaster);
+    logMessage("QKD Processor started");
 }
 
 void MainWindow::processStop()

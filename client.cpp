@@ -79,6 +79,7 @@ void Client::handleData(Connection::PackageType type, QVariant data)
     {
         if(type == Connection::PTcustomData) {
             CustomPackage package(data.value<CustomPackage>());
+            qDebug() << "got" << package;
             emit receiveData(package.first, package.second);
         }
     }
@@ -119,6 +120,7 @@ void Client::sendData(quint8 type, QVariant data)
 {
     if(connection && status == CSready) {
         CustomPackage package(type, data);
+        qDebug() << "sending" << package;
         connection->sendData(Connection::PTcustomData, QVariant::fromValue(package));
     } else {
         emit logMessage("Not ready for sending data.");

@@ -2,9 +2,8 @@
 #define MEASUREMENT_H
 
 #include <QPair>
-#include <QLinkedList>
-
-
+#include <QList>
+#include <QMetaType>
 
 struct Measurement
 {
@@ -31,6 +30,9 @@ inline QDataStream& operator<<(QDataStream& stream, const Measurement& measureme
 }
 
 
-typedef QLinkedList<Measurement> Measurements;
+typedef QList<Measurement> Measurements;
+Q_DECLARE_METATYPE(Measurements)
+static int id3 = qRegisterMetaType<Measurements>();
+static int id4 = qRegisterMetaTypeStreamOperators<Measurements>();
 
 #endif // MEASUREMENT_H

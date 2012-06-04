@@ -6,6 +6,7 @@
 #include <QLabel>
 
 #include "client.h"
+#include "qkdprocessor.h"
 
 class File;
 
@@ -35,6 +36,7 @@ signals:
 private:
     QLabel *labelPort;
     Client client;
+    QKDProcessor qkdp;
 
     File *file;
     bool connectionEstablished;

@@ -15,13 +15,15 @@ SOURCES += main.cpp\
     client.cpp \
     server.cpp \
     connection.cpp \
-    file.cpp
+    file.cpp \
+    qkdprocessor.cpp
 
 HEADERS  += mainwindow.h \
     client.h \
     server.h \
     connection.h \
     file.h \
-    measurement.h
+    measurement.h \
+    qkdprocessor.h
 
 FORMS    += mainwindow.ui
