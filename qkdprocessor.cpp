@@ -16,15 +16,14 @@ QKDProcessor::QKDProcessor(QObject *parent) :
 
 QKDProcessor::~QKDProcessor()
 {
+    /* TODO FIXME
     if(measurements)
         delete measurements;
+        */
 }
 
 void QKDProcessor::incomingData(quint8 type, QVariant data)
 {
-    if(type <= (quint8)PTprepareQKDProcessor)
-        return;
-
     if(isMaster) {
         incomingDataAlice(type, data);
     } else {
@@ -48,7 +47,6 @@ void QKDProcessor::start(bool isMaster)
         // #1 we kindly ask Bob for a list a received bits in first range from 0-quint32
         state = CS01;
         emit sendData(PT01sendReceivedList);
-        emit sendData(PT01sendReceivedList);
     } else { // this is Bob
         state = CSstarted;
     }
@@ -57,7 +55,6 @@ void QKDProcessor::start(bool isMaster)
 void QKDProcessor::incomingDataAlice(quint8 type, QVariant data)
 {
     switch((PackageType)type) {
-    case PTprepareQKDProcessor:
     case PT01sendReceivedList: {
         Quint32List list = data.value<Quint32List>();
 
@@ -70,7 +67,6 @@ void QKDProcessor::incomingDataAlice(quint8 type, QVariant data)
 void QKDProcessor::incomingDataBob(quint8 type, QVariant data)
 {
     switch((PackageType)type) {
-    case PTprepareQKDProcessor:
     case PT01sendReceivedList: {
         Quint32List list;
         // std::numeric_limits

@@ -16,8 +16,7 @@ public:
     ~QKDProcessor();
 
     enum PackageType {
-        PTprepareQKDProcessor = 100,
-        PT01sendReceivedList
+        PT01sendReceivedList = 50
     };
 
     enum ConnectionState {

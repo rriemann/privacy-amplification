@@ -21,12 +21,14 @@ public:
     enum PackageType {
         PTtextMessage = 0,
         PThaveFile,
-        PTask4File
+        PTask4File,
+        PTprepareQKDProcessor
     };
 
     enum ConnectionState {
         CSready,
         CScontinueProcess,
+        CSwait4Preparation,
         CSprocessing
     };
 

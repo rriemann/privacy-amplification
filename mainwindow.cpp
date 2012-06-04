@@ -23,9 +23,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(&client, SIGNAL(closedConnection()), this, SLOT(closedConnection()));
     connect(&client, SIGNAL(receiveData(quint8,QVariant)), this, SLOT(incomingData(quint8,QVariant)));
 
-    // connect(&qkdp, SIGNAL(logMessage(QString,Qt::GlobalColor)), this, SLOT(logMessage(QString,Qt::GlobalColor)));
-    connect(&client, SIGNAL(receiveData(quint8,QVariant)), &qkdp, SLOT(incomingData(quint8,QVariant)));
-    // connect(&qkdp, SIGNAL(sendData(quint8,QVariant)), &client, SLOT(sendData(quint8,QVariant)));
+    connect(&qkdp, SIGNAL(logMessage(QString,Qt::GlobalColor)), this, SLOT(logMessage(QString,Qt::GlobalColor)));
+    //connect(&client, SIGNAL(receiveData(quint8,QVariant)), &qkdp, SLOT(incomingData(quint8,QVariant)));
+    connect(&qkdp, SIGNAL(sendData(quint8,QVariant)), &client, SLOT(sendData(quint8,QVariant)));
 
 
     connect(actionConnect, SIGNAL(triggered()), this, SLOT(connectClicked()));
@@ -112,35 +112,32 @@ void MainWindow::closedConnection()
 void MainWindow::incomingData(quint8 type, QVariant data)
 {
     switch((PackageType)type) {
-    case PTtextMessage: {
+    case PTtextMessage:
         logMessage(data.toString(), Qt::magenta);
-    }
-        break;
-    case PThaveFile: {
+        return;
+    case PThaveFile:
         clientReady = data.toBool();
         logMessage(QString("client has %1file.").arg(clientReady ? QString() : QString("not ")), Qt::yellow);
         if(state == CScontinueProcess) {
             processStart();
         }
-
-    }
-        break;
-    case PTask4File: {
+        return;
+    case PTask4File:
         sendHaveFile();
-    }
-        break;
-    }
-
-    /*
-    if(type == (quint8)QKDProcessor::PTprepareQKDProcessor && file) {
-        state = CSprocessing;
-
+        return;
+    case PTprepareQKDProcessor:
+        if(state == CSready && !isMaster) { // prepare and echo to alice
+            client.sendData(PTprepareQKDProcessor);
+        }
+        Q_ASSERT(file);
         qkdp.setMeasurements(file->getMeasurements(isMaster));
         qkdp.start(isMaster);
         logMessage("QKD Processor started");
-
+        state = CSprocessing;
+        return;
+    default:
+        qkdp.incomingData(type, data);
     }
-    */
 }
 
 void MainWindow::sendTextMessage()
@@ -217,14 +214,9 @@ void MainWindow::processStart()
         state = CScontinueProcess;
         return;
     }
-    state = CSprocessing;
+    state = CSwait4Preparation;
 
-    static int i = 95;
-    client.sendData(i++);
-    // qkdp.setMeasurements(file->getMeasurements(isMaster));
-    // client.sendData(QKDProcessor::PTprepareQKDProcessor);
-    // qkdp.start(isMaster);
-    logMessage("QKD Processor started");
+    client.sendData(PTprepareQKDProcessor);
 }
 
 void MainWindow::processStop()
