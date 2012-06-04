@@ -16,7 +16,6 @@ signals:
     void establishedConnection(bool isMaster);
     void closedConnection();
     void logMessage(QString entry, Qt::GlobalColor backgroundColor = Qt::white);
-    void receivedRole(bool isMaster);
     void receiveData(quint8 type, QVariant data = QVariant());
     
 public slots:

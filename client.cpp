@@ -66,7 +66,6 @@ void Client::handleData(Connection::PackageType type, QVariant data)
     case CSwait4Handshake: // reveiving now the awaited handshake
     {
         isMaster = !data.toBool();
-        emit receivedRole(isMaster);
         QString text = QString("receiving role to be %1.").arg(((isMaster) ? "master" : "slave"));
         logMessage(text, Qt::yellow);
 
