@@ -6,6 +6,9 @@
 
 #include "measurement.h"
 
+typedef quint32 Index;
+typedef QList<Index> IndexList;
+
 class QKDProcessor : public QObject
 {
     Q_OBJECT
@@ -16,7 +19,8 @@ public:
     ~QKDProcessor();
 
     enum PackageType {
-        PT01sendReceivedList = 50
+        PT01sendReceivedList = 50,
+        PT01sendRemainingList
     };
 
     enum ConnectionState {
@@ -29,6 +33,7 @@ private:
     Measurements* measurements;
     bool isMaster;
     ConnectionState state;
+    void siftMeasurements(IndexList list);
     
 signals:
     void sendData(quint8 type, QVariant data = QVariant());

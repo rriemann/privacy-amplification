@@ -3,9 +3,6 @@
 #include <limits>
 using std::max;
 
-typedef quint32 Index;
-
-typedef QList<Index> IndexList;
 Q_DECLARE_METATYPE(IndexList)
 static int id5 = qRegisterMetaType<IndexList>();
 static int id6 = qRegisterMetaTypeStreamOperators<IndexList>();
@@ -33,16 +30,33 @@ QKDProcessor::~QKDProcessor()
         */
 }
 
+void QKDProcessor::siftMeasurements(IndexList list)
+{
+    Measurements *siftedMeasurements = new Measurements;
+
+    Index index;
+    foreach(index, list) {
+        siftedMeasurements->append(measurements->at(index));
+    }
+
+    delete measurements;
+
+    measurements = siftedMeasurements;
+}
+
 void QKDProcessor::incomingData(quint8 type, QVariant data)
 {
+    static IndexBoolPairList list;
+    static IndexList remainingList;
+
     switch((PackageType)type) {
-    case PT01sendReceivedList:
-        IndexBoolPairList list;
+    case PT01sendReceivedList: {
         emit logMessage(QString("Sifting Procedure started"), Qt::green);
         emit logMessage(QString("#01: File contains %1 measurements").arg(measurements->size()));
         if(isMaster) {
             list = data.value<IndexBoolPairList>();
         } else {
+            list.clear();
             Q_ASSERT((qint64)std::numeric_limits<Index>::max() >= measurements->size());
             for(int index = 0; index < measurements->size(); index++) {
                 if(measurements->at(index).valid)
@@ -52,7 +66,32 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         }
         emit logMessage(QString("#01: Valid measurements (containing 1 received photons): %1 (%2%)").arg(list.size()).arg((double)list.size()*100/measurements->size()));
 
+
+        if(isMaster) {
+            IndexBoolPair pair;
+            remainingList.clear();
+            foreach(pair, list) {
+                if(measurements->at(pair.first).base == pair.second)
+                    remainingList.append(pair.first);
+            }
+            emit sendData(PT01sendRemainingList, QVariant::fromValue(remainingList));
+        }
+
         return;
+    }
+    case PT01sendRemainingList: {
+        if(isMaster) {
+        } else {
+            remainingList = data.value<IndexList>();
+            emit sendData(PT01sendRemainingList);
+        }
+        emit logMessage(QString("#01: Remaining measurements after sifting (same base): %1 (%2%)").arg(remainingList.size()).arg((double)remainingList.size()*100/list.size()));
+        siftMeasurements(remainingList);
+        list.clear();
+        remainingList.clear();
+        emit logMessage(QString("Sifting Procedure finished"), Qt::green);
+        return;
+    }
     }
 }
 
