@@ -23,9 +23,19 @@ Measurements *File::getMeasurements(bool isMaster)
     }
     quint8 photonMask = photon01Mask;
 
+    bool valid;
     for(qint64 i = 0; i < this->size(); i++) {
         this->getChar((char*)&measurementData);
-        Measurement measurement(measurementData & baseMask, measurementData & bitMask, measurementData & photonMask);
+        if(isMaster) {
+            valid = true;
+        } else {
+            valid = !((measurementData & photon01Mask) == (measurementData & photon02Mask));
+        }
+        Measurement measurement(measurementData & baseMask,
+                                measurementData & bitMask,
+                                measurementData & photonMask,
+                                valid);
+        Q_ASSERT(measurement.valid);
         measurements->append(measurement);
     }
 
