@@ -15,7 +15,7 @@ void Connection::receiveData()
     QDataStream in(this);
     in.setVersion(streamVersion);
     if (blockSize == 0) {
-        if (this->bytesAvailable() < (int)sizeof(quint16))
+        if (this->bytesAvailable() < (int)sizeof(qint64))
             return;
         in >> blockSize;
     }
@@ -37,11 +37,14 @@ void Connection::sendData(const PackageType type, const QVariant &data)
     QByteArray block;
     QDataStream out(&block, QIODevice::WriteOnly);
     out.setVersion(streamVersion);
-    out << (quint16)0;
+    out << (qint64)0;
     out << (quint16)type;
     out << data;
     out.device()->seek(0);
-    out << (quint16)(block.size() - sizeof(quint16));
+    out << (quint64)(block.size() - sizeof(qint64));
 
-    this->write(block);
+    qint64 wsize = this->write(block);
+    Q_ASSERT(wsize == block.size());
+    // qDebug() << "in package" << (qint64)block.size();
+    // qDebug() << "wrote" << wsize << "from" << block.size();
 }

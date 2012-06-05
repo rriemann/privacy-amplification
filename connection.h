@@ -28,7 +28,7 @@ public slots:
 private slots:
 
 private:
-    quint16 blockSize;
+    qint64 blockSize;
     static const QDataStream::Version streamVersion;
     
 };
