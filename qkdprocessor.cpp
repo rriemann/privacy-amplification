@@ -37,16 +37,16 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 {
     switch((PackageType)type) {
     case PT01sendReceivedList:
-        IndexList list;
+        IndexBoolPairList list;
         emit logMessage(QString("Sifting Procedure started"), Qt::green);
         emit logMessage(QString("#01: File contains %1 measurements").arg(measurements->size()));
         if(isMaster) {
-            list = data.value<IndexList>();
+            list = data.value<IndexBoolPairList>();
         } else {
             Q_ASSERT((qint64)std::numeric_limits<Index>::max() >= measurements->size());
             for(int index = 0; index < measurements->size(); index++) {
                 if(measurements->at(index).valid)
-                    list.append(index);
+                    list.append(IndexBoolPair(index,measurements->at(index).base));
             }
             emit sendData(PT01sendReceivedList, QVariant::fromValue(list));
         }

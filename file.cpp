@@ -35,7 +35,6 @@ Measurements *File::getMeasurements(bool isMaster)
                                 measurementData & bitMask,
                                 measurementData & photonMask,
                                 valid);
-        Q_ASSERT(measurement.valid);
         measurements->append(measurement);
     }
 
