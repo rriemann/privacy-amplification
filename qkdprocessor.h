@@ -20,7 +20,9 @@ public:
 
     enum PackageType {
         PT01sendReceivedList = 50,
-        PT01sendRemainingList
+        PT01sendRemainingList,
+        PT02errorEstimationSendSample,
+        PT02errorEstimationReport
     };
 
     enum ConnectionState {

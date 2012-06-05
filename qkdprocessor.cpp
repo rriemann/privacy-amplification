@@ -2,6 +2,7 @@
 
 #include <limits>
 using std::max;
+#include <math.h>
 
 Q_DECLARE_METATYPE(IndexList)
 static int id5 = qRegisterMetaType<IndexList>();
@@ -16,6 +17,11 @@ typedef QList<IndexBoolPair> IndexBoolPairList;
 Q_DECLARE_METATYPE(IndexBoolPairList)
 static int id9  = qRegisterMetaType<IndexBoolPairList>();
 static int id10 = qRegisterMetaTypeStreamOperators<IndexBoolPairList>();
+
+typedef QList<bool> BoolList;
+Q_DECLARE_METATYPE(BoolList)
+static int id11 = qRegisterMetaType<BoolList>();
+static int id12 = qRegisterMetaTypeStreamOperators<BoolList>();
 
 QKDProcessor::QKDProcessor(QObject *parent) :
     QObject(parent), measurements(0), isMaster(false), state(CSready)
@@ -48,8 +54,13 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 {
     static IndexBoolPairList list;
     static IndexList remainingList;
+    static Index errorEstimationSampleSize;
+    static BoolList boolList;
+    static Index errorCounter;
+    static qreal error;
 
     switch((PackageType)type) {
+    // Sifting Procedure
     case PT01sendReceivedList: {
         emit logMessage(QString("Sifting Procedure started"), Qt::green);
         emit logMessage(QString("#01: File contains %1 measurements").arg(measurements->size()));
@@ -85,13 +96,56 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             remainingList = data.value<IndexList>();
             emit sendData(PT01sendRemainingList);
         }
-        emit logMessage(QString("#01: Remaining measurements after sifting (same base): %1 (%2%)").arg(remainingList.size()).arg((double)remainingList.size()*100/list.size()));
+        emit logMessage(QString("#02: Remaining measurements after sifting (same base): %1 (%2%)").arg(remainingList.size()).arg((double)remainingList.size()*100/list.size()));
         siftMeasurements(remainingList);
         list.clear();
         remainingList.clear();
         emit logMessage(QString("Sifting Procedure finished"), Qt::green);
+        if(isMaster) {
+            errorEstimationSampleSize = ceil(measurements->size()*0.05);
+            emit sendData(PT02errorEstimationSendSample, errorEstimationSampleSize); // invoke Bob to send BitSample
+        }
         return;
     }
+    // Error Estimation
+    case PT02errorEstimationSendSample: {
+        emit logMessage(QString("Error Estimation started"), Qt::green);
+        boolList.clear();
+        if(!isMaster) {
+            // prepare Bit Sample for error Estimation and send it to Bob
+            // sample is taken from the end of list for memory efficiency (we are using QList)
+            errorEstimationSampleSize = data.value<Index>();
+            Q_ASSERT(measurements->size() >= (qint64)errorEstimationSampleSize);
+            for(Index index = 0; index < errorEstimationSampleSize; index++) {
+                boolList.append(measurements->takeLast().bit);
+            }
+            emit sendData(PT02errorEstimationSendSample, QVariant::fromValue(boolList));
+        } else {
+            boolList = data.value<BoolList>();
+            errorCounter = 0;
+            Q_ASSERT(measurements->size() >= (qint64)errorEstimationSampleSize);
+            for(Index index = 0; index < errorEstimationSampleSize; index++) {
+                if(measurements->takeLast().bit != boolList.at(index))
+                    errorCounter++;
+            }
+            emit sendData(PT02errorEstimationReport, QVariant::fromValue<Index>(errorCounter));
+        }
+        return;
+    }
+    case PT02errorEstimationReport: {
+        if(!isMaster) {
+            errorCounter = data.value<Index>();
+            emit sendData(PT02errorEstimationReport);
+        } else {
+        }
+        error = (double)errorCounter/boolList.size();
+        emit logMessage(QString("#01: Estimated error rate: %1 / %2 (%3%)").arg(errorCounter).arg(boolList.size()).arg(error*100));
+        boolList.clear();
+        emit logMessage(QString("Error Estimation finished"), Qt::green);
+
+        return;
+    }
+
     }
 }
 

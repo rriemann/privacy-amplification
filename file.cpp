@@ -12,29 +12,30 @@ Measurements *File::getMeasurements(bool isMaster)
     Measurements* measurements = new Measurements;
     quint8 measurementData = 0;
 
-    quint8 baseMask, bitMask;
+    quint8 baseMask;
 
     if(isMaster) {
         baseMask = baseAMask;
-        bitMask = bitAMask;
     } else {
         baseMask = baseBMask;
-        bitMask = bitBMask;
     }
+    quint8 bitMask = bitAMask;
     quint8 photonMask = photon01Mask;
 
+    bool bit;
     bool valid;
+    bool photon;
     for(qint64 i = 0; i < this->size(); i++) {
         this->getChar((char*)&measurementData);
+        bit = measurementData & bitMask;
         if(isMaster) {
             valid = true;
         } else {
-            valid = ((bool)(measurementData & photon01Mask)) ^ ((bool)(measurementData & photon02Mask));
+            photon = (bool)(measurementData & photon01Mask);
+            valid = photon ^ ((bool)(measurementData & photon02Mask));
+            bit = (!photon) ^ bit; // toggle Bob's bit in dependence of measured photon
         }
-        Measurement measurement(measurementData & baseMask,
-                                measurementData & bitMask,
-                                measurementData & photonMask,
-                                valid);
+        Measurement measurement(measurementData & baseMask, bit, valid);
         measurements->append(measurement);
     }
 
