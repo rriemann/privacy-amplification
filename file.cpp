@@ -29,7 +29,7 @@ Measurements *File::getMeasurements(bool isMaster)
         if(isMaster) {
             valid = true;
         } else {
-            valid = !((measurementData & photon01Mask) == (measurementData & photon02Mask));
+            valid = ((bool)(measurementData & photon01Mask)) ^ ((bool)(measurementData & photon02Mask));
         }
         Measurement measurement(measurementData & baseMask,
                                 measurementData & bitMask,
