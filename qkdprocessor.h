@@ -29,8 +29,6 @@ private:
     Measurements* measurements;
     bool isMaster;
     ConnectionState state;
-    void incomingDataAlice(quint8 type, QVariant data);
-    void incomingDataBob(quint8 type, QVariant data);
     
 signals:
     void sendData(quint8 type, QVariant data = QVariant());
