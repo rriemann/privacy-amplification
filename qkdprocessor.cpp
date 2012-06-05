@@ -33,8 +33,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 
 void QKDProcessor::setMeasurements(Measurements *measurements)
 {
-    if(measurements)
-        delete measurements;
+    if(this->measurements)
+        delete this->measurements;
 
     this->measurements = measurements;
 }
