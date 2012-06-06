@@ -50,6 +50,24 @@ void QKDProcessor::siftMeasurements(IndexList list)
     measurements = siftedMeasurements;
 }
 
+quint16 QKDProcessor::calculateInitialBlockSize(qreal errorProbability)
+{
+    if(errorProbability < 0.02) {
+        return 80;
+    } else if(errorProbability < 0.05) {
+        return 16;
+    } else if(errorProbability < 0.07) {
+        return 10;
+    } else if(errorProbability < 0.1) {
+        return 7;
+    } else if(errorProbability < 0.15) {
+        return 5;
+    } else {
+        emit logMessage(QString("EE: errorEstimation exceeded secure limit!"));
+        return 5;
+    }
+}
+
 void QKDProcessor::incomingData(quint8 type, QVariant data)
 {
     static IndexBoolPairList list;

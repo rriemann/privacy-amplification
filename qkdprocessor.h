@@ -36,6 +36,7 @@ private:
     bool isMaster;
     ConnectionState state;
     void siftMeasurements(IndexList list);
+    quint16 calculateInitialBlockSize(qreal errorProbability);
     
 signals:
     void sendData(quint8 type, QVariant data = QVariant());
