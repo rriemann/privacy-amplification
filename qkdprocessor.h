@@ -23,7 +23,11 @@ public:
         PT01sendRemainingList,
         PT02errorEstimationSendSample,
         PT02errorEstimationReport,
-        PT03blockParities
+        PT03prepareBlockParities,
+        PT03compareBlockParities,
+        PT04reportBlockParities,
+        PT03startBinary,
+        PT03blockParities2
     };
 
     enum ConnectionState {
@@ -38,8 +42,10 @@ private:
     ConnectionState state;
     void siftMeasurements(IndexList list);
     quint16 calculateInitialBlockSize(qreal errorProbability);
-    bool calculateParity(Measurements::const_iterator begin, quint16 size);
+    bool calculateParity(const MeasurementsByReference::const_iterator &begin, const quint16 &size) const;
+    inline IndexList getOrderedList(Index range);
     IndexList getRandomList(Index range);
+    MeasurementsByReference reorderMeasurements(IndexList order);
     
 signals:
     void sendData(quint8 type, QVariant data = QVariant());
@@ -47,7 +53,7 @@ signals:
     
 public slots:
     void start(bool isMaster);
-    void incomingData(quint8 type, QVariant data);
+    void incomingData(quint8 type, QVariant data = QVariant());
 
     void setMeasurements(Measurements* measurements);
     

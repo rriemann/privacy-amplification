@@ -4,6 +4,7 @@
 using std::max;
 #include <math.h>
 #include <QTime>
+#include <qdebug.h>
 
 Q_DECLARE_METATYPE(IndexList)
 static int id5 = qRegisterMetaType<IndexList>();
@@ -70,26 +71,43 @@ quint16 QKDProcessor::calculateInitialBlockSize(qreal errorProbability)
     }
 }
 
-bool QKDProcessor::calculateParity(Measurements::const_iterator begin, quint16 size)
+bool QKDProcessor::calculateParity(const MeasurementsByReference::const_iterator &begin, const quint16 &size) const
 {
-    Measurements::const_iterator end = begin + size;
+    const MeasurementsByReference::const_iterator end = begin + size;
     bool parity = false;
-    for(Measurements::const_iterator i = begin; i != end; i++)
-        parity = parity ^ (*i).bit;
+    for(MeasurementsByReference::const_iterator i = begin; i != end; i++)
+        parity = parity ^ (*i)->bit;
     return parity;
 }
 
-IndexList QKDProcessor::getRandomList(Index range)
+IndexList QKDProcessor::getOrderedList(Index range)
 {
     IndexList orderedList;
     for(Index i = 0; i < range; i++)
         orderedList.append(i);
+    return orderedList;
+}
+
+IndexList QKDProcessor::getRandomList(Index range)
+{
+    IndexList orderedList = getOrderedList(range);
     IndexList randomList;
     while(!orderedList.empty()) {
         Index randomIndex = qrand() % (orderedList.size()-1);
         randomList.append(orderedList.takeAt(randomIndex));
     }
     return randomList;
+}
+
+MeasurementsByReference QKDProcessor::reorderMeasurements(IndexList order)
+{
+    MeasurementsByReference list;
+    Index index;
+    foreach(index, order) {
+        Measurement measurement = measurements->at(index);
+        list.append(&measurement);
+    }
+    return list;
 }
 
 void QKDProcessor::incomingData(quint8 type, QVariant data)
@@ -102,6 +120,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     static qreal error;
     static quint16 k1; // initial block size
     static BoolList parities;
+    static QList<IndexList> orders;
+    static QList<MeasurementsByReference> reorderedMeasurements;
 
     switch((PackageType)type) {
     // Sifting Procedure
@@ -190,26 +210,77 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         emit logMessage(QString("Error Estimation finished"), Qt::green);
 
         emit logMessage("Initial Parity Check started", Qt::green);
-        parities.clear();
-        Measurements::const_iterator last = measurements->end() - k1; // there might be unhandled bits < k1; (TODO)
-        for(Measurements::const_iterator index = measurements->begin(); index <= last; index+=k1) {
-            bool parity = calculateParity(index, k1);
-            parities.append(parity);
-        }
+        quint16 removeBits = measurements->size() % k1;
+        for(quint16 i = 0; i < removeBits; i++)
+            measurements->removeLast();
 
-        if(isMaster) {
-            emit sendData(PT03blockParities, QVariant::fromValue<BoolList>(parities));
-        }
+        orders.clear();
+        reorderedMeasurements.clear();
+
+        QVariant data = QVariant::fromValue<IndexList>(getOrderedList(measurements->size()));
+        this->incomingData(PT03prepareBlockParities, data);
+        emit sendData(PT03prepareBlockParities, data);
 
         return;
     }
 
-    case PT03blockParities: {
-        if(!isMaster) {
-            BoolList compareParities = data.value<BoolList>();
-        } else {
-
+    case PT03prepareBlockParities: {
+        emit logMessage("in PT03blockParities");
+        quint16 blockSize = k1*pow(2,orders.size());
+        orders.append(data.fromValue<IndexList>());
+        reorderedMeasurements.append((reorderMeasurements(orders.last())));
+        parities.clear();
+        MeasurementsByReference::const_iterator end = reorderedMeasurements.last.end() - blockSize; // there might be unhandled bits < k1; (TODO)
+        for(MeasurementsByReference::const_iterator index = reorderedMeasurements.last().begin(); index <= end; index+=blockSize) {
+            bool parity = calculateParity(index, blockSize);
+            parities.append(parity);
         }
+
+        if(isMaster) {
+            emit sendData(PT03compareBlockParities, QVariant::fromValue<BoolList>(parities));
+        }
+
+        return;
+
+    }
+    case PT03compareBlockParities: {
+        if(!isMaster) {
+            Index size = parities.size();
+            Q_ASSERT(size > 0);
+            Q_ASSERT(compareParities.size() == size);
+            BoolList compareParities = data.value<BoolList>();
+            IndexList corruptBlocks;
+            for(Index index = 0; index < size; index++) {
+                if(compareParities.at(index) != parities.at(index))
+                    corruptBlocks.append(index);
+            }
+            emit sendData(PT04reportBlockParities, QVariant::fromValue<IndexList>(corruptBlocks));
+        }
+        return;
+    }
+    case PT04reportBlockParities: {
+        if(isMaster) {
+            IndexList corruptBlocks = data.fromValue<IndexList>();
+            if(corruptBlocks.empty()) {
+                if(orders.size() < 4) {
+                    QVariant data = QVariant::fromValue<IndexList>(getRandomList(measurements->size()));
+                    this->incomingData(PT03prepareBlockParities, data);
+                    emit sendData(PT03prepareBlockParities, data);
+                } else {
+                    emit logMessage("fertig!");
+                }
+            } else { // start Binary
+
+            }
+        }
+        return;
+    }
+
+    case PT03startBinary: {
+        emit logMessage("in PT03startBinary");
+        return;
+    }
+    case PT03blockParities2: {
         return;
     }
 
