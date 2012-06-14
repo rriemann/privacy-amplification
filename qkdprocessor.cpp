@@ -3,6 +3,7 @@
 #include <limits>
 using std::max;
 #include <math.h>
+#include <QTime>
 
 Q_DECLARE_METATYPE(IndexList)
 static int id5 = qRegisterMetaType<IndexList>();
@@ -26,6 +27,7 @@ static int id12 = qRegisterMetaTypeStreamOperators<BoolList>();
 QKDProcessor::QKDProcessor(QObject *parent) :
     QObject(parent), measurements(0), isMaster(false), state(CSready)
 {
+    qsrand(QTime::currentTime().msec());
 }
 
 QKDProcessor::~QKDProcessor()
@@ -68,6 +70,28 @@ quint16 QKDProcessor::calculateInitialBlockSize(qreal errorProbability)
     }
 }
 
+bool QKDProcessor::calculateParity(Measurements::const_iterator begin, quint16 size)
+{
+    Measurements::const_iterator end = begin + size;
+    bool parity = false;
+    for(Measurements::const_iterator i = begin; i != end; i++)
+        parity = parity ^ (*i).bit;
+    return parity;
+}
+
+IndexList QKDProcessor::getRandomList(Index range)
+{
+    IndexList orderedList;
+    for(Index i = 0; i < range; i++)
+        orderedList.append(i);
+    IndexList randomList;
+    while(!orderedList.empty()) {
+        Index randomIndex = qrand() % (orderedList.size()-1);
+        randomList.append(orderedList.takeAt(randomIndex));
+    }
+    return randomList;
+}
+
 void QKDProcessor::incomingData(quint8 type, QVariant data)
 {
     static IndexBoolPairList list;
@@ -76,6 +100,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     static BoolList boolList;
     static Index errorCounter;
     static qreal error;
+    static quint16 k1; // initial block size
+    static BoolList parities;
 
     switch((PackageType)type) {
     // Sifting Procedure
@@ -159,8 +185,31 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         error = (double)errorCounter/boolList.size();
         emit logMessage(QString("#01: Estimated error rate: %1 / %2 (%3%)").arg(errorCounter).arg(boolList.size()).arg(error*100));
         boolList.clear();
+        k1 = calculateInitialBlockSize(error);
+        emit logMessage(QString("#02: resulting block size (k1): %1").arg(k1));
         emit logMessage(QString("Error Estimation finished"), Qt::green);
 
+        emit logMessage("Initial Parity Check started", Qt::green);
+        parities.clear();
+        Measurements::const_iterator last = measurements->end() - k1; // there might be unhandled bits < k1; (TODO)
+        for(Measurements::const_iterator index = measurements->begin(); index <= last; index+=k1) {
+            bool parity = calculateParity(index, k1);
+            parities.append(parity);
+        }
+
+        if(isMaster) {
+            emit sendData(PT03blockParities, QVariant::fromValue<BoolList>(parities));
+        }
+
+        return;
+    }
+
+    case PT03blockParities: {
+        if(!isMaster) {
+            BoolList compareParities = data.value<BoolList>();
+        } else {
+
+        }
         return;
     }
 

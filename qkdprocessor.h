@@ -22,7 +22,8 @@ public:
         PT01sendReceivedList = 50,
         PT01sendRemainingList,
         PT02errorEstimationSendSample,
-        PT02errorEstimationReport
+        PT02errorEstimationReport,
+        PT03blockParities
     };
 
     enum ConnectionState {
@@ -37,6 +38,8 @@ private:
     ConnectionState state;
     void siftMeasurements(IndexList list);
     quint16 calculateInitialBlockSize(qreal errorProbability);
+    bool calculateParity(Measurements::const_iterator begin, quint16 size);
+    IndexList getRandomList(Index range);
     
 signals:
     void sendData(quint8 type, QVariant data = QVariant());
