@@ -45,6 +45,7 @@ void Connection::sendData(const PackageType type, const QVariant &data)
 
     qint64 wsize = this->write(block);
     Q_ASSERT(wsize == block.size());
+    this->flush();
     // qDebug() << "in package" << (qint64)block.size();
     // qDebug() << "wrote" << wsize << "from" << block.size();
 }

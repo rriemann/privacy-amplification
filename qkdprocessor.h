@@ -24,8 +24,9 @@ public:
         PT02errorEstimationSendSample,
         PT02errorEstimationReport,
         PT03prepareBlockParities,
+        PT03startBinary,
         PT04reportBlockParities,
-        PT03startBinary
+        PT06finished
     };
 
     enum ConnectionState {
