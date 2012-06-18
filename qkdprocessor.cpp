@@ -28,7 +28,7 @@ static int id12 = qRegisterMetaTypeStreamOperators<BoolList>();
 QKDProcessor::QKDProcessor(QObject *parent) :
     QObject(parent), measurements(0), isMaster(false), state(CSready)
 {
-    qsrand(QTime::currentTime().msec());
+    // qsrand(QTime::currentTime().msec());
 }
 
 QKDProcessor::~QKDProcessor()
@@ -91,12 +91,14 @@ IndexList QKDProcessor::getOrderedList(Index range)
 
 IndexList QKDProcessor::getRandomList(Index range)
 {
+    emit logMessage(QString("Start generating random number list of %1 entries").arg(range));
     IndexList orderedList = getOrderedList(range);
     IndexList randomList;
     while(!orderedList.empty()) {
-        Index randomIndex = qrand() % (orderedList.size()-1);
+        Index randomIndex = qrand() % orderedList.size();
         randomList.append(orderedList.takeAt(randomIndex));
     }
+    emit logMessage("End generating random number list");
     return randomList;
 }
 
@@ -231,8 +233,10 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     case PT03prepareBlockParities: {
         emit logMessage("in PT03blockParities");
         blockSize = k1*pow(2,orders.size());
+        emit logMessage(QString("ki: %1").arg(blockSize));
         binaryBlockSize = blockSize;
         orders.append(data.value<IndexList>());
+        emit logMessage(QString("elements in orders.last: %1").arg(orders.last().size()));
         reorderedMeasurements.append((reorderMeasurements(orders.last())));
         parities.clear();
         MeasurementsByReference::const_iterator end = reorderedMeasurements.last().end() - blockSize; // there might be unhandled bits < k1; (TODO)
@@ -240,15 +244,17 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             bool parity = calculateParity(index, blockSize);
             parities.append(parity);
         }
+        emit logMessage(QString("elements in parities: %1").arg(parities.size()));
 
         if(isMaster) {
-            emit sendData(PT03compareBlockParities, QVariant::fromValue<BoolList>(parities));
+            emit sendData(PT04reportBlockParities, QVariant::fromValue<BoolList>(parities));
         }
 
         return;
 
     }
-    case PT03compareBlockParities: {
+    case PT04reportBlockParities: {
+        emit logMessage("in PT04reportBlockParities");
         if(!isMaster) {
             qint64 size = parities.size();
             Q_ASSERT(size > 0);
@@ -261,11 +267,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             }
             binaryBlockSize = blockSize;
             emit sendData(PT04reportBlockParities, QVariant::fromValue<IndexList>(corruptBlocks));
-        }
-        return;
-    }
-    case PT04reportBlockParities: {
-        if(isMaster) {
+        } else {
             corruptBlocks = data.value<IndexList>();
             if(corruptBlocks.empty()) {
                 if(orders.size() < 4) {
@@ -276,9 +278,10 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                     emit logMessage("fertig!");
                 }
             } else { // start Binary
-                this->incomingData(PT03startBinary);
+                // this->incomingData(PT03startBinary);
             }
         }
+        emit logMessage(QString("nummer of corrupt Blocks: %1 (%2%)").arg(corruptBlocks.size()).arg((double)corruptBlocks.size()/parities.size()));
         return;
     }
 

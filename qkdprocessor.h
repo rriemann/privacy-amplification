@@ -24,7 +24,6 @@ public:
         PT02errorEstimationSendSample,
         PT02errorEstimationReport,
         PT03prepareBlockParities,
-        PT03compareBlockParities,
         PT04reportBlockParities,
         PT03startBinary
     };
