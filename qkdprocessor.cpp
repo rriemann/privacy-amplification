@@ -1,7 +1,9 @@
 #include "qkdprocessor.h"
 
 #include <limits>
+#include <algorithm>
 using std::max;
+using std::random_shuffle;
 #include <math.h>
 #include <QTime>
 #include <qdebug.h>
@@ -91,15 +93,10 @@ IndexList QKDProcessor::getOrderedList(Index range)
 
 IndexList QKDProcessor::getRandomList(Index range)
 {
-    emit logMessage(QString("Start generating random number list of %1 entries").arg(range));
-    IndexList orderedList = getOrderedList(range);
-    IndexList randomList;
-    while(!orderedList.empty()) {
-        Index randomIndex = qrand() % orderedList.size();
-        randomList.append(orderedList.takeAt(randomIndex));
-    }
-    emit logMessage("End generating random number list");
-    return randomList;
+    IndexList list = getOrderedList(range);
+    // http://www.cplusplus.com/reference/algorithm/random_shuffle/
+    random_shuffle(list.begin(), list.end());
+    return list;
 }
 
 MeasurementsByReference QKDProcessor::reorderMeasurements(IndexList order)
