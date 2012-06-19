@@ -36,7 +36,7 @@ Measurements *File::getMeasurements(bool isMaster)
         Measurement *measurement = new Measurement(measurementData & baseMask, bit, valid);
         measurements->append(measurement);
         /*
-        if(i >= 16000)
+        if(i >= 200)
             break;
         */
     }
