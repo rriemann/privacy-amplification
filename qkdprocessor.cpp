@@ -272,7 +272,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 
     }
     case PT04reportBlockParities: {
-        emit logMessage("in PT04reportBlockParities");
+        emit logMessage("in PT04reportBlockParities", Qt::green);
         if(!isMaster) {
             qint64 size = parities.size();
             Q_ASSERT(size > 0);
@@ -284,15 +284,15 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                 QString tmp;
                 tmp = "N=>";
                 for(int j = 0; j < size; j++)
-                    tmp += QString("%1 ").arg(j);
+                    tmp += QString("%1 ").arg(j,2,10,QLatin1Char(' '));
                 emit logMessage(tmp);
                 tmp = "A: ";
                 foreach(bool p, compareParities)
-                    tmp += QString("%1 ").arg((int)p);
+                    tmp += QString("%1 ").arg((int)p,2,10,QLatin1Char(' '));
                 emit logMessage(tmp);
                 tmp = "B: ";
                 foreach(bool p, parities)
-                    tmp += QString("%1 ").arg((int)p);
+                    tmp += QString("%1 ").arg((int)p,2,10,QLatin1Char(' '));
                 emit logMessage(tmp);
 
             }
@@ -313,7 +313,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         {
             for(Index j = 0; (qint64)j < corruptBlocks.size(); j++) {
                 Index index = corruptBlocks.at(j);
-                QString strIndex = QString("%1: ").arg(index);
+                QString strIndex = QString("%1: ").arg(index, 3, 10, QLatin1Char(' '));
                 Index end = index+binaryBlockSize;
                 for(Index i = index; i < end; i++)
                     strIndex += QString("%1 ").arg((int)(reorderedMeasurements.last().at(i)->bit));
@@ -362,7 +362,12 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                 }
             } else { // just toggle wrong bits
                 for(Index i = 0; i < size; i++) {
-                    reorderedMeasurements.last().at(corruptBlocks.at(i))->bit = compareParities.at(i);
+                    // position in reorderedMeasurements: bit1 | bit2
+                    // compareParities contains bit1 from Alice (master)
+                    bool &bit1 = reorderedMeasurements.last().at(corruptBlocks.at(i))->bit;
+                    bool &bit2 = reorderedMeasurements.last().at(corruptBlocks.at(i)+1)->bit;
+                    bit2 = (compareParities.at(i) == bit1) ^ bit2;
+                    bit1 = compareParities.at(i);
                 }
 
             }
