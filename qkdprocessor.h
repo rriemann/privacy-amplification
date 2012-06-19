@@ -41,10 +41,10 @@ private:
     ConnectionState state;
     void siftMeasurements(IndexList list);
     quint16 calculateInitialBlockSize(qreal errorProbability);
-    bool calculateParity(const MeasurementsByReference::const_iterator &begin, const quint16 &size) const;
+    bool calculateParity(const Measurements::const_iterator &begin, const quint16 &size) const;
     inline IndexList getOrderedList(Index range);
     IndexList getRandomList(Index range);
-    MeasurementsByReference reorderMeasurements(IndexList order);
+    Measurements reorderMeasurements(IndexList order);
     
 signals:
     void sendData(quint8 type, QVariant data = QVariant());

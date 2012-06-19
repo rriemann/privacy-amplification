@@ -34,7 +34,7 @@ Measurements *File::getMeasurements(bool isMaster)
             valid = photon ^ ((bool)(measurementData & photon02Mask));
             bit =  photon ^ base;
         }
-        Measurement measurement(measurementData & baseMask, bit, valid);
+        Measurement *measurement = new Measurement(measurementData & baseMask, bit, valid);
         measurements->append(measurement);
         /*
         if(i >= 10000)

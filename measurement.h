@@ -17,6 +17,7 @@ struct Measurement
     bool valid;
 };
 
+/*
 inline QDataStream& operator>>(QDataStream& stream, Measurement& measurement)
 {
     stream >> measurement.base >> measurement.bit >> measurement.valid;
@@ -28,13 +29,14 @@ inline QDataStream& operator<<(QDataStream& stream, const Measurement& measureme
     stream << measurement.base << measurement.bit << measurement.valid;
     return stream;
 }
+*/
 
 
-typedef QList<Measurement> Measurements;
+typedef QList<Measurement*> Measurements;
 Q_DECLARE_METATYPE(Measurements)
+/*
 static int id3 = qRegisterMetaType<Measurements>();
 static int id4 = qRegisterMetaTypeStreamOperators<Measurements>();
-
-typedef QList<Measurement*> MeasurementsByReference;
+*/
 
 #endif // MEASUREMENT_H
