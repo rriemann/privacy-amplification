@@ -22,22 +22,21 @@ Measurements *File::getMeasurements(bool isMaster)
     bool bit;
     bool valid;
     bool photon;
-    bool base;
     for(qint64 i = 0; i < this->size(); i++) {
         this->getChar((char*)&measurementData);
         if(isMaster) {
             valid = true;
             bit = measurementData & bitAMask;
         } else {
-            base = (bool)(measurementData & baseBMask);
+            // bool base = (bool)(measurementData & baseBMask);
             photon = (bool)(measurementData & photon01Mask);
             valid = photon ^ ((bool)(measurementData & photon02Mask));
-            bit =  photon ^ base;
+            bit =  !photon;
         }
         Measurement *measurement = new Measurement(measurementData & baseMask, bit, valid);
         measurements->append(measurement);
         /*
-        if(i >= 10000)
+        if(i >= 16000)
             break;
         */
     }

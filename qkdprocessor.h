@@ -24,8 +24,8 @@ public:
         PT02errorEstimationSendSample,
         PT02errorEstimationReport,
         PT03prepareBlockParities,
-        PT03startBinary,
         PT04reportBlockParities,
+        PT05startBinary,
         PT06finished
     };
 
@@ -41,7 +41,7 @@ private:
     ConnectionState state;
     void siftMeasurements(IndexList list);
     quint16 calculateInitialBlockSize(qreal errorProbability);
-    bool calculateParity(const Measurements::const_iterator &begin, const quint16 &size) const;
+    bool calculateParity(const Measurements measurements, const Index index, const quint16 &size) const;
     inline IndexList getOrderedList(Index range);
     IndexList getRandomList(Index range);
     Measurements reorderMeasurements(IndexList order);
