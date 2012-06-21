@@ -45,6 +45,7 @@ private:
     inline IndexList getOrderedList(Index range);
     IndexList getRandomList(Index range);
     Measurements reorderMeasurements(IndexList order);
+    const static quint8 runCount = 4;
     
 signals:
     void sendData(quint8 type, QVariant data = QVariant());

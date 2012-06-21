@@ -73,7 +73,8 @@ quint16 QKDProcessor::calculateInitialBlockSize(qreal errorProbability)
     }
 }
 
-bool QKDProcessor::calculateParity(const Measurements measurements, const Index index, const quint16 &size) const
+bool QKDProcessor::calculateParity(const Measurements measurements,
+                                   const Index index, const quint16 &size) const
 {
     Q_ASSERT(size > 0);
     const Index end = index + size;
@@ -132,7 +133,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     // Sifting Procedure
     case PT01sendReceivedList: {
         emit logMessage(QString("Sifting Procedure started"), Qt::green);
-        emit logMessage(QString("#01: File contains %1 measurements").arg(measurements->size()));
+        emit logMessage(QString("#01: File contains %1 measurements").
+                        arg(measurements->size()));
         if(isMaster) {
             list = data.value<IndexBoolPairList>();
         } else {
@@ -144,7 +146,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             }
             emit sendData(PT01sendReceivedList, QVariant::fromValue(list));
         }
-        emit logMessage(QString("#01: Valid measurements (containing 1 received photons): %1 (%2%)").arg(list.size()).arg((double)list.size()*100/measurements->size()));
+        emit logMessage(QString("#01: Valid measurements (containing 1 received photons): %1 (%2%)").
+                        arg(list.size()).arg((double)list.size()*100/measurements->size()));
 
 
         if(isMaster) {
@@ -154,7 +157,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                 if(measurements->at(pair.first)->base == pair.second)
                     remainingList.append(pair.first);
             }
-            emit sendData(PT01sendRemainingList, QVariant::fromValue(remainingList));
+            emit sendData(PT01sendRemainingList,
+                          QVariant::fromValue(remainingList));
         }
 
         return;
@@ -165,7 +169,9 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             remainingList = data.value<IndexList>();
             emit sendData(PT01sendRemainingList);
         }
-        emit logMessage(QString("#02: Remaining measurements after sifting (same base): %1 (%2%)").arg(remainingList.size()).arg((double)remainingList.size()*100/list.size()));
+        emit logMessage(QString("#02: Remaining measurements after sifting (same base): %1 (%2%)").
+                        arg(remainingList.size()).
+                        arg((double)remainingList.size()*100/list.size()));
         siftMeasurements(remainingList);
 
         {
@@ -176,7 +182,9 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                 base += measurement->base;
             }
 
-            emit logMessage(QString("Stats ratio: bit = %1%, base = %2%").arg((double)bit/measurements->size()).arg((double)base/measurements->size()));
+            emit logMessage(QString("Stats ratio: bit = %1%, base = %2%").
+                            arg((double)bit/measurements->size()).
+                            arg((double)base/measurements->size()));
         }
 
         list.clear();
@@ -184,7 +192,9 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         emit logMessage(QString("Sifting Procedure finished"), Qt::green);
         if(isMaster) {
             errorEstimationSampleSize = qCeil(measurements->size()*0.05);
-            emit sendData(PT02errorEstimationSendSample, errorEstimationSampleSize); // invoke Bob to send BitSample
+            // invoke Bob to send BitSample
+            emit sendData(PT02errorEstimationSendSample,
+                          errorEstimationSampleSize);
         }
         return;
     }
@@ -194,14 +204,16 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         boolList.clear();
         if(!isMaster) {
             // prepare Bit Sample for error Estimation and send it to Bob
-            // sample is taken from the end of list for memory efficiency (we are using QList)
+            // sample is taken from the end of list for memory efficiency
+            // (we are using QList)
             errorEstimationSampleSize = data.value<Index>();
             Q_ASSERT(measurements->size() >= (qint64)errorEstimationSampleSize);
             for(Index index = 0; index < errorEstimationSampleSize; index++) {
                 boolList.append(measurements->takeLast()->bit);
             }
 
-            emit sendData(PT02errorEstimationSendSample, QVariant::fromValue(boolList));
+            emit sendData(PT02errorEstimationSendSample,
+                          QVariant::fromValue(boolList));
         } else {
             boolList = data.value<BoolList>();
             errorCounter = 0;
@@ -210,7 +222,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                 if(measurements->takeLast()->bit != boolList.at(index))
                     errorCounter++;
             }
-            emit sendData(PT02errorEstimationReport, QVariant::fromValue<Index>(errorCounter));
+            emit sendData(PT02errorEstimationReport,
+                          QVariant::fromValue<Index>(errorCounter));
         }
         return;
     }
@@ -221,16 +234,19 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         } else {
         }
         error = (double)errorCounter/boolList.size();
-        emit logMessage(QString("#01: Estimated error rate: %1 / %2 (%3%)").arg(errorCounter).arg(boolList.size()).arg(error*100));
+        emit logMessage(QString("#01: Estimated error rate: %1 / %2 (%3%)").
+                        arg(errorCounter).arg(boolList.size()).arg(error*100));
         boolList.clear();
         k1 = calculateInitialBlockSize(error);
         emit logMessage(QString("#02: resulting block size (k1): %1").arg(k1));
         emit logMessage(QString("Error Estimation finished"), Qt::green);
 
         emit logMessage("Initial Parity Check started", Qt::green);
-        quint16 removeBits = measurements->size() % k1;
+        Index maximumBlockSize = k1*pow(2,runCount-1);
+        Index removeBits = measurements->size() % maximumBlockSize;
         for(quint16 i = 0; i < removeBits; i++)
             measurements->removeLast();
+        Q_ASSERT(measurements->size()/(qint64)maximumBlockSize > 0);
 
         orders.clear();
         reorderedMeasurements.clear();
@@ -245,27 +261,24 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         emit logMessage("in PT03prepareBlockParities");
         blockSize = k1*pow(2,orders.size());
         blockCount = measurements->size()/blockSize;
-        /*
-         * BUG: Make sure that blockCount is always > 0
-         * (interesting for measurements.size very small
-         *
-         * BUG: blockSize*blockCount<measurements->size()
-         *      für größer werdende blockSize
-         */
         emit logMessage(QString("ki: %1").arg(blockSize));
         binaryBlockSize = blockSize;
         orders.append(data.value<IndexList>());
-        emit logMessage(QString("elements in orders.last: %1").arg(orders.last().size()));
+        emit logMessage(QString("elements in orders.last: %1").
+                        arg(orders.last().size()));
         reorderedMeasurements.append(reorderMeasurements(orders.last()));
         parities.clear();
         Index lastIndex = measurements->size() - blockSize;
         for(Index index = 0; index <= lastIndex; index += blockSize) {
-            parities.append(calculateParity(reorderedMeasurements.last(), index, blockSize));
+            parities.append(calculateParity(reorderedMeasurements.last(),index,
+                                            blockSize));
         }
-        emit logMessage(QString("elements in parities: %1").arg(parities.size()));
+        emit logMessage(QString("elements in parities: %1").
+                        arg(parities.size()));
 
         if(isMaster) {
-            emit sendData(PT04reportBlockParities, QVariant::fromValue<BoolList>(parities));
+            emit sendData(PT04reportBlockParities,
+                          QVariant::fromValue<BoolList>(parities));
         }
 
         return;
@@ -301,14 +314,15 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                 if(compareParities.at(index) != parities.at(index))
                     corruptBlocks.append(index*blockSize);
             }
-            emit sendData(PT04reportBlockParities, QVariant::fromValue<IndexList>(corruptBlocks));
+            emit sendData(PT04reportBlockParities,
+                          QVariant::fromValue<IndexList>(corruptBlocks));
         } else {
             corruptBlocks = data.value<IndexList>();
         }
-        emit logMessage(QString("number of corrupt Blocks: %1/%2 (%3%)").arg(corruptBlocks.size())
-                                                                        .arg(blockCount)
-                                                                        .arg((double)corruptBlocks.size()/blockCount*100)
-                        );
+        emit logMessage(QString("number of corrupt Blocks: %1/%2 (%3%)").
+                        arg(corruptBlocks.size()).
+                        arg(blockCount).
+                        arg((double)corruptBlocks.size()/blockCount*100));
         /*
         {
             for(Index j = 0; (qint64)j < corruptBlocks.size(); j++) {
@@ -323,7 +337,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         */
         if(isMaster) {
             if(corruptBlocks.empty()) {
-                if(orders.size() < 5) {
+                if(orders.size() < runCount) {
                     QVariant data = QVariant::fromValue<IndexList>(getRandomList(measurements->size()));
                     emit sendData(PT03prepareBlockParities, data);
                     this->incomingData(PT03prepareBlockParities, data);
@@ -339,15 +353,18 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 
     case PT05startBinary: {
         binaryBlockSize = binaryBlockSize/2;
-        emit logMessage(QString("in PT05startBinary with binaryBlockSize = %1").arg(binaryBlockSize));
+        emit logMessage(QString("in PT05startBinary with binaryBlockSize = %1").
+                        arg(binaryBlockSize));
         parities.clear();
         if(isMaster || (!isMaster && binaryBlockSize > 1)) {
             foreach(Index index, corruptBlocks) {
-                parities.append(calculateParity(reorderedMeasurements.last(), index, binaryBlockSize));
+                parities.append(calculateParity(reorderedMeasurements.last(),
+                                                index, binaryBlockSize));
             }
         }
         if(isMaster) {
-            emit sendData(PT05startBinary, QVariant::fromValue<BoolList>(parities));
+            emit sendData(PT05startBinary,
+                          QVariant::fromValue<BoolList>(parities));
         } else {
             BoolList compareParities = data.value<BoolList>();
             quint32 size = compareParities.size();
@@ -357,16 +374,21 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                 for(Index i = 0; i < size; i++) {
                     if(compareParities.at(i) == parities.at(i)) {
                         // the 2nd half of the block must me corrupt
-                        corruptBlocks.replace(i, corruptBlocks.at(i)+binaryBlockSize);
+                        corruptBlocks.replace(i,corruptBlocks.at(i)+binaryBlockSize);
                     }
                 }
-            } else { // just toggle wrong bits
+            } else { // binaryBlockSize == 1: just toggle wrong bits
                 for(Index i = 0; i < size; i++) {
                     // position in reorderedMeasurements: bit1 | bit2
                     // compareParities contains bit1 from Alice (master)
-                    bool &bit1 = reorderedMeasurements.last().at(corruptBlocks.at(i))->bit;
-                    bool &bit2 = reorderedMeasurements.last().at(corruptBlocks.at(i)+1)->bit;
-                    bit2 = (compareParities.at(i) == bit1) ^ bit2;
+                    bool &bit1 = reorderedMeasurements.last().
+                            at(corruptBlocks.at(i))->bit;
+                    bool &bit2 = reorderedMeasurements.last().
+                            at(corruptBlocks.at(i)+1)->bit;
+                    if(compareParities.at(i) == bit1) {
+                        bit2 = !bit2;
+                        corruptBlocks.replace(i, corruptBlocks.at(i)+1);
+                    }
                     bit1 = compareParities.at(i);
                 }
 
@@ -376,7 +398,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             corruptBlocks.clear();
         }
         if(!isMaster) {
-            emit sendData(PT04reportBlockParities, QVariant::fromValue<IndexList>(corruptBlocks));
+            emit sendData(PT04reportBlockParities,
+                          QVariant::fromValue<IndexList>(corruptBlocks));
         }
         return;
     }
