@@ -261,13 +261,12 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     }
 
     case PT03prepareBlockParities: {
-        emit logMessage("in PT03prepareBlockParities");
         if(data.userType() == idIndexList) {
             orders.append(data.value<IndexList>());
             reorderedMeasurements.append(reorderMeasurements(orders.last()));
             runIndex = orders.size() - 1;
 
-        } else if(data.type() == QMetaType::UInt) {
+        } else if(data.type() == (QVariant::Type)QMetaType::UInt) {
             runIndex = data.toUInt();
         }
         Q_ASSERT(orders.size() == reorderedMeasurements.size());
@@ -276,7 +275,9 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         blockSize = k1*pow(2,runIndex);
         binaryBlockSize = blockSize;
         blockCount = measurements->size()/blockSize;
-        emit logMessage(QString("ki: %1").arg(blockSize));
+        emit logMessage(QString("in PT03prepareBlockParities, orders.size = %1, runIndex = %2, blockSize = %3").
+                        arg(orders.size()).arg(runIndex).arg(blockSize));
+        //emit logMessage(QString("ki: %1").arg(blockSize));
         /*
         orders.append(data.value<IndexList>());
         emit logMessage(QString("elements in orders.last: %1").
@@ -289,8 +290,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             parities.append(calculateParity(reorderedMeasurements.at(runIndex),
                                             index, blockSize));
         }
-        emit logMessage(QString("elements in parities: %1").
-                        arg(parities.size()));
+        // emit logMessage(QString("elements in parities: %1").arg(parities.size()));
 
         if(isMaster) {
             emit sendData(PT04reportBlockParities,
@@ -301,7 +301,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 
     }
     case PT04reportBlockParities: {
-        emit logMessage("in PT04reportBlockParities", Qt::green);
+        // emit logMessage("in PT04reportBlockParities", Qt::green);
         if(!isMaster) {
             qint64 size = parities.size();
             Q_ASSERT(size > 0);
@@ -335,10 +335,12 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         } else {
             corruptBlocks = data.value<IndexList>();
         }
-        emit logMessage(QString("number of corrupt Blocks: %1/%2 (%3%)").
-                        arg(corruptBlocks.size()).
-                        arg(blockCount).
-                        arg((double)corruptBlocks.size()/blockCount*100));
+        if(blockSize == binaryBlockSize) {
+            emit logMessage(QString("number of corrupt Blocks: %1/%2 (%3%)").
+                            arg(corruptBlocks.size()).
+                            arg(blockCount).
+                            arg((double)corruptBlocks.size()/blockCount*100));
+        }
         /*
         {
             for(Index j = 0; (qint64)j < corruptBlocks.size(); j++) {
@@ -353,7 +355,17 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         */
         if(isMaster) {
             if(corruptBlocks.empty()) {
-                if(orders.size() < runCount) {
+                runIndex++;
+                // startBinary finished and there is another run
+                // to return to (orders.size > 0)
+                if((binaryBlockSize == 1) && (orders.size() > 1) &&
+                   (runIndex == orders.size())) {
+                    runIndex = 0;
+                }
+                if(runIndex < orders.size()) {
+                    emit sendData(PT03prepareBlockParities, (uint)runIndex);
+                    this->incomingData(PT03prepareBlockParities);
+                } else if(orders.size() < runCount) {
                     QVariant data = QVariant::fromValue<IndexList>(getRandomList(measurements->size()));
                     emit sendData(PT03prepareBlockParities, data);
                     this->incomingData(PT03prepareBlockParities, data);
@@ -369,8 +381,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 
     case PT05startBinary: {
         binaryBlockSize = binaryBlockSize/2;
-        emit logMessage(QString("in PT05startBinary with binaryBlockSize = %1").
-                        arg(binaryBlockSize));
+        // emit logMessage(QString("in PT05startBinary with binaryBlockSize = %1").arg(binaryBlockSize));
         parities.clear();
         if(isMaster || (!isMaster && binaryBlockSize > 1)) {
             foreach(Index index, corruptBlocks) {
