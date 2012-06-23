@@ -9,7 +9,7 @@ using std::random_shuffle;
 #include <qdebug.h>
 
 Q_DECLARE_METATYPE(IndexList)
-static int id5 = qRegisterMetaType<IndexList>();
+static int idIndexList = qRegisterMetaType<IndexList>();
 static int id6 = qRegisterMetaTypeStreamOperators<IndexList>();
 
 typedef QPair<quint32,bool> IndexBoolPair;
@@ -128,6 +128,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     static quint16 blockSize;
     static quint16 binaryBlockSize;
     static Index blockCount;
+    static quint8 runIndex;
 
     switch((PackageType)type) {
     // Sifting Procedure
@@ -251,27 +252,42 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         orders.clear();
         reorderedMeasurements.clear();
 
-        QVariant data = QVariant::fromValue<IndexList>(getOrderedList(measurements->size()));
-        this->incomingData(PT03prepareBlockParities, data);
+        runIndex = 0;
+        orders.append(getOrderedList(measurements->size()));
+        reorderedMeasurements.append(*measurements);
+        this->incomingData(PT03prepareBlockParities, (uint)runIndex);
 
         return;
     }
 
     case PT03prepareBlockParities: {
         emit logMessage("in PT03prepareBlockParities");
-        blockSize = k1*pow(2,orders.size());
+        if(data.userType() == idIndexList) {
+            orders.append(data.value<IndexList>());
+            reorderedMeasurements.append(reorderMeasurements(orders.last()));
+            runIndex = orders.size() - 1;
+
+        } else if(data.type() == QMetaType::UInt) {
+            runIndex = data.toUInt();
+        }
+        Q_ASSERT(orders.size() == reorderedMeasurements.size());
+        Q_ASSERT(runIndex < orders.size());
+
+        blockSize = k1*pow(2,runIndex);
+        binaryBlockSize = blockSize;
         blockCount = measurements->size()/blockSize;
         emit logMessage(QString("ki: %1").arg(blockSize));
-        binaryBlockSize = blockSize;
+        /*
         orders.append(data.value<IndexList>());
         emit logMessage(QString("elements in orders.last: %1").
                         arg(orders.last().size()));
         reorderedMeasurements.append(reorderMeasurements(orders.last()));
+        */
         parities.clear();
         Index lastIndex = measurements->size() - blockSize;
         for(Index index = 0; index <= lastIndex; index += blockSize) {
-            parities.append(calculateParity(reorderedMeasurements.last(),index,
-                                            blockSize));
+            parities.append(calculateParity(reorderedMeasurements.at(runIndex),
+                                            index, blockSize));
         }
         emit logMessage(QString("elements in parities: %1").
                         arg(parities.size()));
@@ -358,7 +374,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         parities.clear();
         if(isMaster || (!isMaster && binaryBlockSize > 1)) {
             foreach(Index index, corruptBlocks) {
-                parities.append(calculateParity(reorderedMeasurements.last(),
+                parities.append(calculateParity(reorderedMeasurements.at(runIndex),
                                                 index, binaryBlockSize));
             }
         }
@@ -381,9 +397,9 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                 for(Index i = 0; i < size; i++) {
                     // position in reorderedMeasurements: bit1 | bit2
                     // compareParities contains bit1 from Alice (master)
-                    bool &bit1 = reorderedMeasurements.last().
+                    bool &bit1 = reorderedMeasurements.at(runIndex).
                             at(corruptBlocks.at(i))->bit;
-                    bool &bit2 = reorderedMeasurements.last().
+                    bool &bit2 = reorderedMeasurements.at(runIndex).
                             at(corruptBlocks.at(i)+1)->bit;
                     if(compareParities.at(i) == bit1) {
                         bit2 = !bit2;
@@ -391,11 +407,9 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                     }
                     bit1 = compareParities.at(i);
                 }
+                corruptBlocks.clear();
 
             }
-        }
-        if(binaryBlockSize == 1) {
-            corruptBlocks.clear();
         }
         if(!isMaster) {
             emit sendData(PT04reportBlockParities,
