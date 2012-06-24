@@ -26,7 +26,8 @@ public:
         PT03prepareBlockParities,
         PT04reportBlockParities,
         PT05startBinary,
-        PT06finished
+        PT06finished,
+        PT07evaluation
     };
 
     enum ConnectionState {

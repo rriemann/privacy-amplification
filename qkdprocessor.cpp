@@ -394,10 +394,10 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                           QVariant::fromValue<BoolList>(parities));
         } else {
             BoolList compareParities = data.value<BoolList>();
-            quint32 size = compareParities.size();
-            Q_ASSERT(corruptBlocks.size() == compareParities.size());
+            Index size = compareParities.size();
+            Q_ASSERT(corruptBlocks.size() == (qint64)size);
             if(binaryBlockSize > 1)  {
-                Q_ASSERT((qint64)size == parities.size());
+                Q_ASSERT(parities.size() == (qint64)size);
                 for(Index i = 0; i < size; i++) {
                     if(compareParities.at(i) == parities.at(i)) {
                         // the 2nd half of the block must me corrupt
@@ -429,9 +429,33 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         return;
     }
     case PT06finished: {
-        if(!isMaster)
+        if(!isMaster) {
             emit sendData(PT06finished);
+        } else {
+            this->sendData(PT07evaluation);
+        }
         emit logMessage("fertig!");
+        return;
+    }
+
+    case PT07evaluation: {
+        parities.clear();
+        Index size = measurements->size();
+        for(Index index = 0; index < size; index++)
+            parities.append(calculateParity(*measurements, index, 1));
+        if(!isMaster) {
+            emit sendData(PT07evaluation, QVariant::fromValue<BoolList>(parities));
+        } else {
+            BoolList compareParities = data.value<BoolList>();
+            Q_ASSERT(compareParities.size() ==(qint64)size);
+            Index errors = 0;
+            for(Index index = 0; index < size; index++) {
+                if(parities.at(index) != compareParities.at(index))
+                    errors++;
+            }
+            emit logMessage(QString("Ergebnis: %1 (%2%) Bit-Fehler").arg(errors).
+                            arg(100.0*errors/size));
+        }
         return;
     }
 
