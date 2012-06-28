@@ -173,7 +173,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         emit logMessage(QString("#02: Remaining measurements after sifting (same base): %1 (%2%)").
                         arg(remainingList.size()).
                         arg((double)remainingList.size()*100/list.size()));
-        siftMeasurements(remainingList);
+        siftMeasurements(remainingList); // TODO Speicherleck!
 
         {
             int bit = 0;
@@ -210,7 +210,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             errorEstimationSampleSize = data.value<Index>();
             Q_ASSERT(measurements->size() >= (qint64)errorEstimationSampleSize);
             for(Index index = 0; index < errorEstimationSampleSize; index++) {
-                boolList.append(measurements->takeLast()->bit);
+                boolList.append(measurements->takeLast()->bit); // TODO Speicherleck!
             }
 
             emit sendData(PT02errorEstimationSendSample,
@@ -246,7 +246,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         Index maximumBlockSize = k1*pow(2,runCount-1);
         Index removeBits = measurements->size() % maximumBlockSize;
         for(quint16 i = 0; i < removeBits; i++)
-            measurements->removeLast();
+            measurements->removeLast(); // TODO Speicherleck!
         Q_ASSERT(measurements->size()/(qint64)maximumBlockSize > 0);
 
         orders.clear();
@@ -414,7 +414,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                             at(corruptBlocks.at(i)+1)->bit;
                     if(compareParities.at(i) == bit1) {
                         bit2 = !bit2;
-                        corruptBlocks.replace(i, corruptBlocks.at(i)+1);
+                        // corruptBlocks.replace(i, corruptBlocks.at(i)+1);
                     }
                     bit1 = compareParities.at(i);
                 }
