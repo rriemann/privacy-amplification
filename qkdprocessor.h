@@ -7,6 +7,7 @@
 #include "measurement.h"
 
 typedef quint32 Index;
+typedef qint64 SIndex;
 typedef QList<Index> IndexList;
 
 class QKDProcessor : public QObject

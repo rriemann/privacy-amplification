@@ -12,7 +12,7 @@ Q_DECLARE_METATYPE(IndexList)
 static int idIndexList = qRegisterMetaType<IndexList>();
 static int id6 = qRegisterMetaTypeStreamOperators<IndexList>();
 
-typedef QPair<quint32,bool> IndexBoolPair;
+typedef QPair<Index,bool> IndexBoolPair;
 Q_DECLARE_METATYPE(IndexBoolPair)
 static int id7 = qRegisterMetaType<IndexBoolPair>();
 static int id8 = qRegisterMetaTypeStreamOperators<IndexBoolPair>();
@@ -43,12 +43,29 @@ QKDProcessor::~QKDProcessor()
 
 void QKDProcessor::siftMeasurements(IndexList list)
 {
+    /*
+    10,275,208 (8 direct, 10,275,200 indirect) bytes in 1 blocks are definitely lost in loss record 491 of 491
+      in QKDProcessor::siftMeasurements(QList&lt;unsigned int&gt;) in qkdprocessor.cpp:46
+      1: operator new(unsigned long) in /usr/lib64/valgrind/vgpreload_memcheck-amd64-linux.so
+      2: QKDProcessor::siftMeasurements(QList&lt;unsigned int&gt;) in <a href="file:///home/rriemann/Documents/Development/C++/Qt4/privacy-amplification/qkdprocessor.cpp:46" >qkdprocessor.cpp:46</a>
+      3: QKDProcessor::incomingData(unsigned char, QVariant) in <a href="file:///home/rriemann/Documents/Development/C++/Qt4/privacy-amplification/qkdprocessor.cpp:181" >qkdprocessor.cpp:181</a>
+      4: MainWindow::incomingData(unsigned char, QVariant) in <a href="file:///home/rriemann/Documents/Development/C++/Qt4/privacy-amplification/mainwindow.cpp:139" >mainwindow.cpp:139</a>
+    */
     Measurements *siftedMeasurements = new Measurements;
 
-    Index index;
-    foreach(index, list) {
+    Index deleteIndex = 0;
+    foreach(Index index, list) {
+        // delete Measurement Objects with indexes not in list
+        for(;deleteIndex < index; deleteIndex++)
+            delete measurements->at(deleteIndex);
+        // if Index is in list: copy pointer to new Measurement list
         siftedMeasurements->append(measurements->at(index));
+        // make sure to not delete the indexed object afterwards
+        deleteIndex = index+1;
     }
+    // delete remaining elements between last index in list and end of list
+    for(;(SIndex)deleteIndex < measurements->size(); deleteIndex++)
+        delete measurements->at(deleteIndex);
 
     delete measurements;
 
@@ -78,7 +95,7 @@ bool QKDProcessor::calculateParity(const Measurements measurements,
 {
     Q_ASSERT(size > 0);
     const Index end = index + size;
-    Q_ASSERT((qint64)end <= measurements.size());
+    Q_ASSERT((SIndex)end <= measurements.size());
     bool parity = false;
     for(Index i = index; i < end; i++) {
         parity = parity ^ measurements.at(i)->bit;
@@ -140,7 +157,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             list = data.value<IndexBoolPairList>();
         } else {
             list.clear();
-            Q_ASSERT((qint64)std::numeric_limits<Index>::max() >= measurements->size());
+            Q_ASSERT((SIndex)std::numeric_limits<Index>::max() >= measurements->size());
             for(int index = 0; index < measurements->size(); index++) {
                 if(measurements->at(index)->valid)
                     list.append(IndexBoolPair(index,measurements->at(index)->base));
@@ -173,7 +190,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         emit logMessage(QString("#02: Remaining measurements after sifting (same base): %1 (%2%)").
                         arg(remainingList.size()).
                         arg((double)remainingList.size()*100/list.size()));
-        siftMeasurements(remainingList); // TODO Speicherleck!
+        siftMeasurements(remainingList);
 
         {
             int bit = 0;
@@ -203,14 +220,17 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     case PT02errorEstimationSendSample: {
         emit logMessage(QString("Error Estimation started"), Qt::green);
         boolList.clear();
+        Measurement *measurement;
         if(!isMaster) {
             // prepare Bit Sample for error Estimation and send it to Bob
             // sample is taken from the end of list for memory efficiency
             // (we are using QList)
             errorEstimationSampleSize = data.value<Index>();
-            Q_ASSERT(measurements->size() >= (qint64)errorEstimationSampleSize);
+            Q_ASSERT(measurements->size() >= (SIndex)errorEstimationSampleSize);
             for(Index index = 0; index < errorEstimationSampleSize; index++) {
-                boolList.append(measurements->takeLast()->bit); // TODO Speicherleck!
+                measurement = measurements->takeLast();
+                boolList.append(measurement->bit);
+                delete measurement;
             }
 
             emit sendData(PT02errorEstimationSendSample,
@@ -218,10 +238,12 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         } else {
             boolList = data.value<BoolList>();
             errorCounter = 0;
-            Q_ASSERT(measurements->size() >= (qint64)errorEstimationSampleSize);
+            Q_ASSERT(measurements->size() >= (SIndex)errorEstimationSampleSize);
             for(Index index = 0; index < errorEstimationSampleSize; index++) {
-                if(measurements->takeLast()->bit != boolList.at(index))
+                measurement = measurements->takeLast();
+                if(measurement->bit != boolList.at(index))
                     errorCounter++;
+                delete measurement;
             }
             emit sendData(PT02errorEstimationReport,
                           QVariant::fromValue<Index>(errorCounter));
@@ -246,8 +268,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         Index maximumBlockSize = k1*pow(2,runCount-1);
         Index removeBits = measurements->size() % maximumBlockSize;
         for(quint16 i = 0; i < removeBits; i++)
-            measurements->removeLast(); // TODO Speicherleck!
-        Q_ASSERT(measurements->size()/(qint64)maximumBlockSize > 0);
+            delete measurements->takeLast();
+        Q_ASSERT(measurements->size()/(SIndex)maximumBlockSize > 0);
 
         orders.clear();
         reorderedMeasurements.clear();
@@ -343,7 +365,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         }
         /*
         {
-            for(Index j = 0; (qint64)j < corruptBlocks.size(); j++) {
+            for(Index j = 0; (SIndex)j < corruptBlocks.size(); j++) {
                 Index index = corruptBlocks.at(j);
                 QString strIndex = QString("%1: ").arg(index, 3, 10, QLatin1Char(' '));
                 Index end = index+binaryBlockSize;
@@ -395,9 +417,9 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         } else {
             BoolList compareParities = data.value<BoolList>();
             Index size = compareParities.size();
-            Q_ASSERT(corruptBlocks.size() == (qint64)size);
+            Q_ASSERT(corruptBlocks.size() == (SIndex)size);
             if(binaryBlockSize > 1)  {
-                Q_ASSERT(parities.size() == (qint64)size);
+                Q_ASSERT(parities.size() == (SIndex)size);
                 for(Index i = 0; i < size; i++) {
                     if(compareParities.at(i) == parities.at(i)) {
                         // the 2nd half of the block must me corrupt
@@ -447,7 +469,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             emit sendData(PT07evaluation, QVariant::fromValue<BoolList>(parities));
         } else {
             BoolList compareParities = data.value<BoolList>();
-            Q_ASSERT(compareParities.size() ==(qint64)size);
+            Q_ASSERT(compareParities.size() ==(SIndex)size);
             Index errors = 0;
             for(Index index = 0; index < size; index++) {
                 if(parities.at(index) != compareParities.at(index))
