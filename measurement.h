@@ -11,6 +11,7 @@ struct Measurement
     explicit Measurement() : base(0), bit(0), valid(1) {}
     Measurement &operator=(const Measurement &other)
     {base = other.base; bit = other.bit; valid = other.valid; return *this;}
+    Measurement(const Measurement &other) {base = other.base; bit = other.bit; valid = other.valid;}
 
     bool base;
     bool bit;

@@ -44,15 +44,30 @@ QKDProcessor::~QKDProcessor()
 void QKDProcessor::siftMeasurements(IndexList list)
 {
     /*
+     * 8 bytes in 1 blocks are definitely lost in loss record 140 of 861
+     * in QKDProcessor::siftMeasurements(QList&lt;unsigned int&gt;) in qkdprocessor.cpp:54
+     * 1: operator new(unsigned long) in /usr/lib64/valgrind/vgpreload_memcheck-amd64-linux.so
+     *   |
+     *   v
+     */
+    Measurements *siftedMeasurements = new Measurements;
+    foreach(Index index, list) {
+        siftedMeasurements->append(new Measurement(*(measurements->at(index))));
+    }
+
+    qDeleteAll(*measurements);
+
+    /*
     10,275,208 (8 direct, 10,275,200 indirect) bytes in 1 blocks are definitely lost in loss record 491 of 491
       in QKDProcessor::siftMeasurements(QList&lt;unsigned int&gt;) in qkdprocessor.cpp:46
       1: operator new(unsigned long) in /usr/lib64/valgrind/vgpreload_memcheck-amd64-linux.so
       2: QKDProcessor::siftMeasurements(QList&lt;unsigned int&gt;) in <a href="file:///home/rriemann/Documents/Development/C++/Qt4/privacy-amplification/qkdprocessor.cpp:46" >qkdprocessor.cpp:46</a>
       3: QKDProcessor::incomingData(unsigned char, QVariant) in <a href="file:///home/rriemann/Documents/Development/C++/Qt4/privacy-amplification/qkdprocessor.cpp:181" >qkdprocessor.cpp:181</a>
       4: MainWindow::incomingData(unsigned char, QVariant) in <a href="file:///home/rriemann/Documents/Development/C++/Qt4/privacy-amplification/mainwindow.cpp:139" >mainwindow.cpp:139</a>
+          |
+          v
     */
-    Measurements *siftedMeasurements = new Measurements;
-
+    /*
     Index deleteIndex = 0;
     foreach(Index index, list) {
         // delete Measurement Objects with indexes not in list
@@ -66,6 +81,8 @@ void QKDProcessor::siftMeasurements(IndexList list)
     // delete remaining elements between last index in list and end of list
     for(;(SIndex)deleteIndex < measurements->size(); deleteIndex++)
         delete measurements->at(deleteIndex);
+
+    */
 
     delete measurements;
 
