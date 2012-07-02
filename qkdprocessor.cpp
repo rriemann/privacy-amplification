@@ -167,7 +167,6 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     static qreal error;
     static quint16 k1; // initial block size
     static BoolList parities;
-    static QList<IndexList> orders;
     static IndexList corruptBlocks;
     static QList<Measurements> reorderedMeasurements;
     static quint16 blockSize;
@@ -308,11 +307,9 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             delete measurements->takeLast();
         Q_ASSERT(measurements->size()/(SIndex)maximumBlockSize > 0);
 
-        orders.clear();
         reorderedMeasurements.clear();
 
         runIndex = 0;
-        orders.append(getOrderedList(measurements->size()));
         reorderedMeasurements.append(*measurements);
         this->incomingData(PT03prepareBlockParities, (uint)runIndex);
 
@@ -321,21 +318,19 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 
     case PT03prepareBlockParities: {
         if(data.userType() == idIndexList) {
-            orders.append(data.value<IndexList>());
-            reorderedMeasurements.append(reorderMeasurements(orders.last()));
-            runIndex = orders.size() - 1;
+            reorderedMeasurements.append(reorderMeasurements(data.value<IndexList>()));
+            runIndex = reorderedMeasurements.size() - 1;
 
         } else if(data.type() == (QVariant::Type)QMetaType::UInt) {
             runIndex = data.toUInt();
         }
-        Q_ASSERT(orders.size() == reorderedMeasurements.size());
-        Q_ASSERT(runIndex < orders.size());
+        Q_ASSERT(runIndex < reorderedMeasurements.size());
 
         blockSize = k1*pow(2,runIndex);
         binaryBlockSize = blockSize;
         blockCount = measurements->size()/blockSize;
-        emit logMessage(QString("in PT03prepareBlockParities, orders.size = %1, runIndex = %2, blockSize = %3").
-                        arg(orders.size()).arg(runIndex).arg(blockSize));
+        emit logMessage(QString("in PT03prepareBlockParities, reorderedMeasurements.size = %1, runIndex = %2, blockSize = %3").
+                        arg(reorderedMeasurements.size()).arg(runIndex).arg(blockSize));
         //emit logMessage(QString("ki: %1").arg(blockSize));
         /*
         orders.append(data.value<IndexList>());
@@ -417,14 +412,14 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                 runIndex++;
                 // startBinary finished and there is another run
                 // to return to (orders.size > 0)
-                if((binaryBlockSize == 1) && (orders.size() > 1) &&
-                   (runIndex == orders.size())) {
+                if((binaryBlockSize == 1) && (reorderedMeasurements.size() > 1) &&
+                   (runIndex == reorderedMeasurements.size())) {
                     runIndex = 0;
                 }
-                if(runIndex < orders.size()) {
+                if(runIndex < reorderedMeasurements.size()) {
                     emit sendData(PT03prepareBlockParities, (uint)runIndex);
                     this->incomingData(PT03prepareBlockParities);
-                } else if(orders.size() < runCount) {
+                } else if(reorderedMeasurements.size() < runCount) {
                     QVariant data = QVariant::fromValue<IndexList>(getRandomList(measurements->size()));
                     emit sendData(PT03prepareBlockParities, data);
                     this->incomingData(PT03prepareBlockParities, data);
