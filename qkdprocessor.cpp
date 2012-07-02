@@ -33,12 +33,23 @@ QKDProcessor::QKDProcessor(QObject *parent) :
     // qsrand(QTime::currentTime().msec());
 }
 
+void QKDProcessor::clearMeasurements()
+{
+    if(measurements) {
+        qDeleteAll(*measurements);
+        delete measurements;
+    }
+}
+
+void QKDProcessor::setMeasurements(Measurements *measurements)
+{
+    clearMeasurements();
+    this->measurements = measurements;
+}
+
 QKDProcessor::~QKDProcessor()
 {
-    /* TODO FIXME
-    if(measurements)
-        delete measurements;
-        */
+    clearMeasurements();
 }
 
 void QKDProcessor::siftMeasurements(IndexList list)
@@ -508,17 +519,6 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     }
 
     }
-}
-
-void QKDProcessor::setMeasurements(Measurements *measurements)
-{
-    if(this->measurements) {
-        qDeleteAll(*this->measurements);
-        this->measurements->clear();
-        delete this->measurements;
-    }
-
-    this->measurements = measurements;
 }
 
 void QKDProcessor::start(bool isMaster)
