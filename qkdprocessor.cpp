@@ -163,6 +163,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     static quint16 binaryBlockSize;
     static Index blockCount;
     static quint8 runIndex;
+    static IndexList randomSample;
 
     switch((PackageType)type) {
     // Sifting Procedure
@@ -226,41 +227,49 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         remainingList.clear();
         emit logMessage(QString("Sifting Procedure finished"), Qt::green);
         if(isMaster) {
-            errorEstimationSampleSize = qCeil(measurements->size()*0.05);
+            errorEstimationSampleSize = qCeil(measurements->size()*0.01);
+            randomSample.clear();
+            randomSample = getRandomList(measurements->size());
+            randomSample.erase(randomSample.begin()+errorEstimationSampleSize,
+                               randomSample.end());
+            qSort(randomSample.begin(),randomSample.end());
+
             // invoke Bob to send BitSample
             emit sendData(PT02errorEstimationSendSample,
-                          errorEstimationSampleSize);
+                          QVariant::fromValue<IndexList>(randomSample));
         }
         return;
     }
     // Error Estimation
     case PT02errorEstimationSendSample: {
         emit logMessage(QString("Error Estimation started"), Qt::green);
-        boolList.clear();
-        Measurement *measurement;
         if(!isMaster) {
-            // prepare Bit Sample for error Estimation and send it to Bob
-            // sample is taken from the end of list for memory efficiency
-            // (we are using QList)
-            errorEstimationSampleSize = data.value<Index>();
-            Q_ASSERT(measurements->size() >= (SIndex)errorEstimationSampleSize);
-            for(Index index = 0; index < errorEstimationSampleSize; index++) {
-                measurement = measurements->takeLast();
-                boolList.append(measurement->bit);
-                delete measurement;
-            }
+            randomSample = data.value<IndexList>();
+        }
 
+        Index size = randomSample.size();
+        Q_ASSERT(measurements->size() >= (SIndex)size);
+        Measurement *measurement;
+        boolList.clear();
+        // http://qt-project.org/doc/qt-4.8/qlistiterator.html#details
+        QListIterator<Index> randomSampleIterator(randomSample);
+        randomSampleIterator.toBack();
+        while(randomSampleIterator.hasPrevious() ) {
+            // TODO: loop using takeAt(...) is quite time consuming :/
+            measurement = measurements->takeAt(randomSampleIterator.previous());
+            boolList.append(measurement->bit);
+            delete measurement;
+        }
+
+        if(!isMaster) {
             emit sendData(PT02errorEstimationSendSample,
                           QVariant::fromValue(boolList));
         } else {
-            boolList = data.value<BoolList>();
+            BoolList compareBoolList = data.value<BoolList>();
             errorCounter = 0;
-            Q_ASSERT(measurements->size() >= (SIndex)errorEstimationSampleSize);
-            for(Index index = 0; index < errorEstimationSampleSize; index++) {
-                measurement = measurements->takeLast();
-                if(measurement->bit != boolList.at(index))
+            for(Index index = 0; index < size; index++) {
+                if(boolList.at(index) != compareBoolList.at(index))
                     errorCounter++;
-                delete measurement;
             }
             emit sendData(PT02errorEstimationReport,
                           QVariant::fromValue<Index>(errorCounter));
