@@ -1,8 +1,6 @@
 #include "connection.h"
 #include <QtNetwork>
 
-#include <qdebug.h>
-
 const QDataStream::Version Connection::streamVersion = QDataStream::Qt_4_5;
 
 Connection::Connection(QObject *parent) :
@@ -47,6 +45,4 @@ void Connection::sendData(const PackageType type, const QVariant &data)
     Q_UNUSED(wsize);
     Q_ASSERT(wsize == block.size());
     this->flush();
-    // qDebug() << "in package" << (qint64)block.size();
-    // qDebug() << "wrote" << wsize << "from" << block.size();
 }

@@ -42,7 +42,9 @@ void Client::incomingConnection(Connection *incomingConnection)
         emit logMessage(QString("Waiting for Handshake from %1:%2").arg(connection->peerAddress().toString()).arg(connection->peerPort()), Qt::yellow);
         status = CSwait4Handshake;
     } else {
-        qDebug() << "dismiss incoming connection from " << incomingConnection->peerAddress() << incomingConnection->peerPort();
+        emit logMessage(QString("dismiss incoming connection from %1:%2").
+                        arg(incomingConnection->peerAddress().toString()).
+                        arg(incomingConnection->peerPort()));
         incomingConnection->deleteLater();
     }
 }
@@ -79,7 +81,6 @@ void Client::handleData(Connection::PackageType type, QVariant data)
     {
         if(type == Connection::PTcustomData) {
             CustomPackage package(data.value<CustomPackage>());
-            qDebug() << "got" << package;
             emit receiveData(package.first, package.second);
         }
     }
@@ -100,8 +101,6 @@ void Client::initiateConnection(QString host, int port, bool isMaster)
 
 void Client::startHandShake()
 {
-    qDebug() << "start HandShake with " << connection->peerAddress() << connection->peerPort();
-    qDebug() << connection->state();
     connection->sendData(Connection::PTroleDefinition, isMaster);
 }
 
@@ -120,7 +119,6 @@ void Client::sendData(quint8 type, QVariant data)
 {
     if(connection && status == CSready) {
         CustomPackage package(type, data);
-        qDebug() << "sending" << package;
         connection->sendData(Connection::PTcustomData, QVariant::fromValue(package));
     } else {
         emit logMessage("Not ready for sending data.");
