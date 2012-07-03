@@ -41,13 +41,13 @@ private:
     Measurements* measurements;
     bool isMaster;
     ConnectionState state;
-    void siftMeasurements(IndexList list);
     quint16 calculateInitialBlockSize(qreal errorProbability);
     bool calculateParity(const Measurements measurements, const Index index, const quint16 &size) const;
     inline IndexList getOrderedList(Index range);
     IndexList getRandomList(Index range);
     Measurements reorderMeasurements(IndexList order);
     const static quint8 runCount = 4;
+    const static qreal errorEstimationSampleRatio = 0.02;
     void clearMeasurements();
     
 signals:
