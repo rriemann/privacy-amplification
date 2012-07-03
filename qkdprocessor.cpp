@@ -99,11 +99,11 @@ IndexList QKDProcessor::getRandomList(Index range)
     return list;
 }
 
-Measurements QKDProcessor::reorderMeasurements(IndexList order)
+Measurements QKDProcessor::reorderMeasurements(const Measurements measurements, const IndexList order)
 {
     Measurements list;
     foreach(Index index, order) {
-        list.append(measurements->at(index));
+        list.append(measurements.at(index));
     }
 
     return list;
@@ -173,26 +173,27 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                         arg(remainingList.size()).
                         arg((double)remainingList.size()*100/list.size()));
         {
-            Measurements* siftedMeasurements = new Measurements;
+            Measurements siftedMeasurements;
             foreach(Index index, remainingList) {
-                siftedMeasurements->append(measurements->at(index));
+                siftedMeasurements.append(measurements->at(index));
             }
             //reorderedMeasurements.append(siftedMeasurements);
-            measurements = siftedMeasurements;
+            reorderedMeasurements.append(siftedMeasurements);
 
         }
 
         {
             int bit = 0;
             int base = 0;
-            foreach(Measurement *measurement, *this->measurements) {
+            Measurements measurements = reorderedMeasurements.first();
+            foreach(Measurement *measurement, measurements) {
                 bit += measurement->bit;
                 base += measurement->base;
             }
 
             emit logMessage(QString("Stats ratio: bit = %1%, base = %2%").
-                            arg((double)bit/measurements->size()).
-                            arg((double)base/measurements->size()));
+                            arg((double)bit/measurements.size()).
+                            arg((double)base/measurements.size()));
         }
 
         list.clear();
@@ -200,26 +201,11 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         emit logMessage(QString("Sifting Procedure finished"), Qt::green);
 
         if(isMaster) {
-            IndexList order = getRandomList(measurements->size());
-            reorderedMeasurements.append(reorderMeasurements(order));
+            IndexList order = getRandomList(reorderedMeasurements.first().size());
+            reorderedMeasurements.replace(0, reorderMeasurements(reorderedMeasurements.last(), order));
             emit sendData(PT02errorEstimationSendSample,
                           QVariant::fromValue<IndexList>(order));
         }
-
-        /*
-        if(isMaster) {
-            errorEstimationSampleSize = qCeil(measurements->size()*0.01);
-            randomSample.clear();
-            randomSample = getRandomList(measurements->size());
-            randomSample.erase(randomSample.begin()+errorEstimationSampleSize,
-                               randomSample.end());
-            qSort(randomSample.begin(),randomSample.end());
-
-            // invoke Bob to send BitSample
-            emit sendData(PT02errorEstimationSendSample,
-                          QVariant::fromValue<IndexList>(randomSample));
-        }
-        */
         return;
     }
     // Error Estimation
@@ -227,8 +213,9 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         emit logMessage(QString("Error Estimation started"), Qt::green);
         if(!isMaster) {
             IndexList order = data.value<IndexList>();
-            reorderedMeasurements.append(reorderMeasurements(order));
+            reorderedMeasurements.replace(0,reorderMeasurements(reorderedMeasurements.last(), order));
         }
+        Q_ASSERT(reorderedMeasurements.size() == 1);
         Q_ASSERT(reorderedMeasurements.first().size() > 1);
         errorEstimationSampleSize = qCeil(reorderedMeasurements.first().size()*
                                           errorEstimationSampleRatio);
@@ -288,7 +275,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 
     case PT03prepareBlockParities: {
         if(data.userType() == idIndexList) {
-            reorderedMeasurements.append(reorderMeasurements(data.value<IndexList>()));
+            reorderedMeasurements.append(reorderMeasurements(reorderedMeasurements.last(), data.value<IndexList>()));
             runIndex = reorderedMeasurements.size() - 1;
 
         } else if(data.type() == (QVariant::Type)QMetaType::UInt) {

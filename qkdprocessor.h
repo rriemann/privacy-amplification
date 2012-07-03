@@ -45,7 +45,7 @@ private:
     bool calculateParity(const Measurements measurements, const Index index, const quint16 &size) const;
     inline IndexList getOrderedList(Index range);
     IndexList getRandomList(Index range);
-    Measurements reorderMeasurements(IndexList order);
+    static Measurements reorderMeasurements(const Measurements measurements, const IndexList order);
     const static quint8 runCount = 4;
     const static qreal errorEstimationSampleRatio = 0.02;
     void clearMeasurements();
