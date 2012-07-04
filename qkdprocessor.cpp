@@ -123,7 +123,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     static quint16 binaryBlockSize;
     static Index blockCount;
     static quint8 runIndex;
-    static IndexList randomSample;
+    static Index transferedBitsCounter; // number of bits known to eve
 
     switch((PackageType)type) {
     // Sifting Procedure
@@ -190,8 +190,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             }
 
             emit logMessage(QString("Stats ratio: bit = %1%, base = %2%").
-                            arg((double)bit/measurements.size()).
-                            arg((double)base/measurements.size()));
+                            arg(100.0*bit/measurements.size()).
+                            arg(100.0*base/measurements.size()));
         }
 
         list.clear();
@@ -266,6 +266,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         Q_ASSERT(reorderedMeasurements.first().size()/(SIndex)maximumBlockSize > 0);
 
         runIndex = 0;
+        transferedBitsCounter = 0;
         this->incomingData(PT03prepareBlockParities, (uint)runIndex);
 
         return;
@@ -317,24 +318,6 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             BoolList compareParities = data.value<BoolList>();
             Q_ASSERT(compareParities.size() == size);
             corruptBlocks.clear();
-            /*
-            {
-                QString tmp;
-                tmp = "N=>";
-                for(int j = 0; j < size; j++)
-                    tmp += QString("%1 ").arg(j,2,10,QLatin1Char(' '));
-                emit logMessage(tmp);
-                tmp = "A: ";
-                foreach(bool p, compareParities)
-                    tmp += QString("%1 ").arg((int)p,2,10,QLatin1Char(' '));
-                emit logMessage(tmp);
-                tmp = "B: ";
-                foreach(bool p, parities)
-                    tmp += QString("%1 ").arg((int)p,2,10,QLatin1Char(' '));
-                emit logMessage(tmp);
-
-            }
-            */
             for(Index index = 0; index < size; index++) {
                 if(compareParities.at(index) != parities.at(index))
                     corruptBlocks.append(index*blockSize);
@@ -344,6 +327,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         } else {
             corruptBlocks = data.value<IndexList>();
         }
+        transferedBitsCounter += corruptBlocks.size();
         if(blockSize == binaryBlockSize) {
             emit logMessage(QString("number of corrupt Blocks: %1/%2 (%3%)").
                             arg(corruptBlocks.size()).
@@ -434,6 +418,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         if(!isMaster) {
             emit sendData(PT04reportBlockParities,
                           QVariant::fromValue<IndexList>(corruptBlocks));
+            transferedBitsCounter += corruptBlocks.size();
         }
         return;
     }
@@ -443,6 +428,10 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         } else {
             this->sendData(PT07evaluation);
         }
+        transferedBitsCounter += reorderedMeasurements.last().size()/
+                      k1*(2-pow(2,1-runCount));
+        emit logMessage(QString("bitCounter: %1 (%2%)").arg(transferedBitsCounter).
+                        arg(100.0*transferedBitsCounter/reorderedMeasurements.last().size()));
         emit logMessage("fertig!");
         return;
     }
