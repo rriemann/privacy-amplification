@@ -41,6 +41,44 @@ void QKDProcessor::clearMeasurements()
     }
 }
 
+QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, const qreal ratio)
+{
+    // clz = count leading zero
+    static quint64 bitLimit = sizeof(quint64)*8-__builtin_clz(qFloor(qSqrt(std::numeric_limits<quint64>::max())));
+    quint64 bufferBits = 0;
+    quint64 bufferBase = 0;
+    int buffer = 0;
+
+    QByteArray finalKey;
+
+    quint8 bufferSize = sizeof(int)*8;
+    quint8 bitCount = qFloor(sizeof(quint64)*8*ratio);
+
+    quint8 pos = 0;
+    quint8 bufferPos = 0;
+    foreach(Measurement *measurement, measurements) {
+        bufferBase &= (quint64)measurement->base << pos;
+        bufferBits &= (quint64)measurement->bit  << pos;
+        pos++;
+        if(pos == bitLimit) {
+            pos = 0;
+            quint64 temp = bufferBase*bufferBits;
+            for(quint8 bitPos = 0; bitPos < bitCount; bitPos++) {
+                // http://stackoverflow.com/a/2249738/1407622
+                buffer &= ((temp & ( 1 << bitPos )) >> bitPos) << bufferPos;
+                bufferPos++;
+                if(bufferPos == bufferSize) {
+                    bufferPos = 0;
+                    finalKey.append(buffer);
+                    buffer = 0;
+                }
+            }
+        }
+    }
+
+    return finalKey;
+}
+
 void QKDProcessor::setMeasurements(Measurements *measurements)
 {
     clearMeasurements();
@@ -61,10 +99,10 @@ quint16 QKDProcessor::calculateInitialBlockSize(qreal errorProbability)
     } else if(errorProbability < 0.07) {
         return 10;
     } else if(errorProbability < 0.1) {
-        return 7;
+        return 6;
     } else {
         emit logMessage(QString("EE: errorEstimation exceeded secure limit!"));
-        return 5;
+        return 4;
     }
 }
 
