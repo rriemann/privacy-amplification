@@ -38,8 +38,6 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(lineEdit, SIGNAL(returnPressed()), this, SLOT(sendTextMessage()));
     connect(lineEditAdress, SIGNAL(returnPressed()), this, SLOT(connectClicked()));
     connect(lineEditPort, SIGNAL(returnPressed()), this, SLOT(connectClicked()));
-
-    connect(actionTest, SIGNAL(triggered()), this, SLOT(test()));
 }
 
 MainWindow::~MainWindow()
@@ -225,43 +223,4 @@ void MainWindow::processStop()
 {
     actionStart->setEnabled(true);
     state = CSready;
-}
-
-void MainWindow::test()
-{
-    qreal ratio = 1;
-    Measurements measurements;
-    Measurement *measurement;
-    for(Index index = 0; index < 64; index++) {
-        bool base = 1;
-        bool bit  = 1;
-        measurement = new Measurement(base, bit);
-        measurements.append(measurement);
-    }
-    for(Index index = 0; index < 64; index++) {
-        bool base = 0;
-        bool bit  = 0;
-        measurement = new Measurement(base, bit);
-        measurements.append(measurement);
-    }
-
-    for(Index index = 0; index < 64; index++) {
-        bool base = qrand() % 2;
-        bool bit  = qrand()  % 2;
-        measurement = new Measurement(base, bit);
-        measurements.append(measurement);
-    }
-
-    QByteArray finalKey = qkdp.privacyAmplification(measurements, ratio);
-    {
-        QFile file("outfile_test.dat");
-        file.open(QIODevice::WriteOnly);
-        QDataStream out(&file);
-        out << finalKey;
-        file.close();
-    }
-
-    qDeleteAll(measurements);
-
-    qDebug() << "finished test.";
 }

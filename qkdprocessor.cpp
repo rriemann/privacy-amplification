@@ -513,9 +513,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                 out << finalKey;
                 file.close();
             }
-            qDebug() << "finalKey->size(): " << finalKey.size();
             int imageSize = qFloor(qSqrt(finalKey.size()/3));
-            qDebug() << "image Size: " << imageSize;
             QImage image(imageSize, imageSize, QImage::Format_RGB888);
             int pos = 0;
             for(int x = 0; x < imageSize; x++) {

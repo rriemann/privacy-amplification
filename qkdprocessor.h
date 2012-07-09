@@ -36,7 +36,6 @@ public:
         CSstarted,
         CS01
     };
-    static QByteArray privacyAmplification(const Measurements measurements, const qreal ratio);
 
 private:
     Measurements* measurements;
@@ -50,6 +49,7 @@ private:
     const static quint8 runCount = 4;
     const static qreal errorEstimationSampleRatio = 0.02;
     void clearMeasurements();
+    static QByteArray privacyAmplification(const Measurements measurements, const qreal ratio);
     
 signals:
     void sendData(quint8 type, QVariant data = QVariant());
