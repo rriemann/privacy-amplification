@@ -6,6 +6,12 @@ using std::max;
 using std::random_shuffle;
 #include <qmath.h>
 #include <QTime>
+#include <QImage>
+#include <QRgb>
+#include <QDataStream>
+#include <QFile>
+#include <QPixmap>
+#include <QLabel>
 #include <qdebug.h>
 
 Q_DECLARE_METATYPE(IndexList)
@@ -30,7 +36,7 @@ static int id12 = qRegisterMetaTypeStreamOperators<BoolList>();
 QKDProcessor::QKDProcessor(QObject *parent) :
     QObject(parent), measurements(0), isMaster(false), state(CSready)
 {
-    // qsrand(QTime::currentTime().msec());
+    qsrand(QTime::currentTime().msec());
 }
 
 void QKDProcessor::clearMeasurements()
@@ -43,29 +49,34 @@ void QKDProcessor::clearMeasurements()
 
 QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, const qreal ratio)
 {
-    // clz = count leading zero
-    static quint64 bitLimit = sizeof(quint64)*8-__builtin_clz(qFloor(qSqrt(std::numeric_limits<quint64>::max())));
-    quint64 bufferBits = 0;
-    quint64 bufferBase = 0;
-    int buffer = 0;
+    typedef quint64 bufferType;
+    typedef quint32 bufferTypeSmall; // must be half as big as bufferType
+
+    static quint8 bitLimitSmall = sizeof(bufferTypeSmall)*8;
+    static quint8 bitLimit      = sizeof(bufferType)*8;
+
+    bufferTypeSmall bufferBits = 0;
+    bufferTypeSmall bufferBase = 0;
 
     QByteArray finalKey;
+    typedef char finalKeyBufferType;
 
-    quint8 bufferSize = sizeof(int)*8;
-    quint8 bitCount = qFloor(sizeof(quint64)*8*ratio);
+    finalKeyBufferType buffer = 0;
+    quint8 bufferSize = sizeof(finalKeyBufferType)*8;
+    quint8 bitCount = qFloor(bitLimitSmall*ratio);
 
     quint8 pos = 0;
     quint8 bufferPos = 0;
     foreach(Measurement *measurement, measurements) {
-        bufferBase &= (quint64)measurement->base << pos;
-        bufferBits &= (quint64)measurement->bit  << pos;
+        bufferBase |= (bufferTypeSmall)measurement->base << pos;
+        bufferBits |= (bufferTypeSmall)measurement->bit  << pos;
         pos++;
-        if(pos == bitLimit) {
+        if(pos == bitLimitSmall) {
             pos = 0;
-            quint64 temp = bufferBase*bufferBits;
+            bufferType temp = (bufferType)bufferBase*(bufferType)bufferBits;
             for(quint8 bitPos = 0; bitPos < bitCount; bitPos++) {
                 // http://stackoverflow.com/a/2249738/1407622
-                buffer &= ((temp & ( 1 << bitPos )) >> bitPos) << bufferPos;
+                buffer |= ((temp & ( 1 << bitPos )) >> bitPos) << bufferPos;
                 bufferPos++;
                 if(bufferPos == bufferSize) {
                     bufferPos = 0;
@@ -73,9 +84,12 @@ QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, c
                     buffer = 0;
                 }
             }
+            bufferBase = 0;
+            bufferBits = 0;
         }
     }
-
+    // there might be fewer bits in finalKey than ratio*measurements->size()
+    // this is due remaining (unused) bits in buffers
     return finalKey;
 }
 
@@ -491,6 +505,32 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             }
             emit logMessage(QString("Ergebnis: %1 (%2%) Bit-Fehler").arg(errors).
                             arg(100.0*errors/size));
+            QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(),1-(qreal)transferedBitsCounter/reorderedMeasurements.last().size());
+            {
+                QFile file("outfile.dat");
+                file.open(QIODevice::WriteOnly);
+                QDataStream out(&file);
+                out << finalKey;
+                file.close();
+            }
+            qDebug() << "finalKey->size(): " << finalKey.size();
+            int imageSize = qFloor(qSqrt(finalKey.size()/3));
+            qDebug() << "image Size: " << imageSize;
+            QImage image(imageSize, imageSize, QImage::Format_RGB888);
+            int pos = 0;
+            for(int x = 0; x < imageSize; x++) {
+                for(int y = 0; y < imageSize; y++) {
+                    image.setPixel(x,y, qRgb(finalKey.at(pos),
+                                             finalKey.at(pos+1),
+                                             finalKey.at(pos+2)));
+                    pos+=3;
+                }
+            }
+            //image.loadFromData(finalKey);
+            QLabel *showImage = new QLabel();
+//            QPixmap pixmap = ;
+            showImage->setPixmap(QPixmap::fromImage(image));
+            showImage->show();
         }
         return;
     }

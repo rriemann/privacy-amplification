@@ -59,6 +59,8 @@ private slots:
     void processStart();
     void processStop();
 
+    void test();
+
 public slots:
     void fileOpen(QString fileName = QString());
 };
