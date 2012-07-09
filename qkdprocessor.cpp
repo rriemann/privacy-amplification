@@ -52,8 +52,8 @@ QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, c
     typedef quint64 bufferType;
     typedef quint32 bufferTypeSmall; // must be half as big as bufferType
 
-    static quint8 bitLimitSmall = sizeof(bufferTypeSmall)*8;
-    static quint8 bitLimit      = sizeof(bufferType)*8;
+    static const quint8 bitLimitSmall = sizeof(bufferTypeSmall)*8;
+    static const quint8 bitLimit      = sizeof(bufferType)*8;
 
     bufferTypeSmall bufferBits = 0;
     bufferTypeSmall bufferBase = 0;
@@ -485,6 +485,30 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         emit logMessage(QString("bitCounter: %1 (%2%)").arg(transferedBitsCounter).
                         arg(100.0*transferedBitsCounter/reorderedMeasurements.last().size()));
         emit logMessage("fertig!");
+
+        QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(),1-(qreal)transferedBitsCounter/reorderedMeasurements.last().size());
+        {
+            QFile file(QString("outfile_%1.dat").arg(isMaster ? "alice" : "bob"));
+            file.open(QIODevice::WriteOnly);
+            QDataStream out(&file);
+            out << finalKey;
+            file.close();
+        }
+        int imageSize = qFloor(qSqrt(finalKey.size()/3));
+        QImage image(imageSize, imageSize, QImage::Format_RGB888);
+        int pos = 0;
+        for(int x = 0; x < imageSize; x++) {
+            for(int y = 0; y < imageSize; y++) {
+                image.setPixel(x,y, qRgb(finalKey.at(pos),
+                                         finalKey.at(pos+1),
+                                         finalKey.at(pos+2)));
+                pos+=3;
+            }
+        }
+        image.save(QString("outfile_%1.png").arg(isMaster ? "alice" : "bob"));
+        static QLabel *showImage = new QLabel(0, Qt::Dialog);
+        showImage->setPixmap(QPixmap::fromImage(image));
+        showImage->show();
         return;
     }
 
@@ -505,30 +529,6 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             }
             emit logMessage(QString("Ergebnis: %1 (%2%) Bit-Fehler").arg(errors).
                             arg(100.0*errors/size));
-            QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(),1-(qreal)transferedBitsCounter/reorderedMeasurements.last().size());
-            {
-                QFile file("outfile.dat");
-                file.open(QIODevice::WriteOnly);
-                QDataStream out(&file);
-                out << finalKey;
-                file.close();
-            }
-            int imageSize = qFloor(qSqrt(finalKey.size()/3));
-            QImage image(imageSize, imageSize, QImage::Format_RGB888);
-            int pos = 0;
-            for(int x = 0; x < imageSize; x++) {
-                for(int y = 0; y < imageSize; y++) {
-                    image.setPixel(x,y, qRgb(finalKey.at(pos),
-                                             finalKey.at(pos+1),
-                                             finalKey.at(pos+2)));
-                    pos+=3;
-                }
-            }
-            //image.loadFromData(finalKey);
-            QLabel *showImage = new QLabel();
-//            QPixmap pixmap = ;
-            showImage->setPixmap(QPixmap::fromImage(image));
-            showImage->show();
         }
         return;
     }
