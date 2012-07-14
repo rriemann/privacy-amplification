@@ -49,16 +49,24 @@ void QKDProcessor::clearMeasurements()
 
 QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, const qreal ratio)
 {
+    /* - count of bits to represent integer: N=ceil(log2(int))
+     * - count of bits to represent squared integer: 2N
+     * - must have double size of bufferTypeSmall to prevent integer overflow
+     * - in any case only half of the bits of squared integer is used, so we can
+     *   accept integer overflow and use the same bit size for bufferType, too.
+     * - bigger types are better, because precision increasing in:
+     *   floor(bitLimitSmall*ratio). step size: 100/64 => 1.56%
+     */
     typedef quint64 bufferType;
-    typedef quint32 bufferTypeSmall; // must be half as big as bufferType
+    typedef quint64 bufferTypeSmall;
 
     static const quint8 bitLimitSmall = sizeof(bufferTypeSmall)*8;
-    static const quint8 bitLimit      = sizeof(bufferType)*8;
 
     bufferTypeSmall bufferBits = 0;
     bufferTypeSmall bufferBase = 0;
 
     QByteArray finalKey;
+    // only cstrings and char can be added to QByteArrays: we choose char
     typedef char finalKeyBufferType;
 
     finalKeyBufferType buffer = 0;
@@ -486,7 +494,10 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                         arg(100.0*transferedBitsCounter/reorderedMeasurements.last().size()));
         emit logMessage("fertig!");
 
-        QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(),1-(qreal)transferedBitsCounter/reorderedMeasurements.last().size());
+        qreal removeRatio = error + (qreal)transferedBitsCounter/
+                                           reorderedMeasurements.last().size();
+        QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(),
+                                                   1-removeRatio);
         {
             QFile file(QString("outfile_%1.dat").arg(isMaster ? "alice" : "bob"));
             file.open(QIODevice::WriteOnly);
