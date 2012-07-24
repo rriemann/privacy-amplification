@@ -209,12 +209,15 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         if(isMaster) {
             IndexBoolPair pair;
             remainingList.clear();
+            BoolList basesList;
             foreach(pair, list) {
-                if(measurements->at(pair.first)->base == pair.second)
+                const bool &ownBase = measurements->at(pair.first)->base;
+                basesList.append(ownBase);
+                if(ownBase == pair.second)
                     remainingList.append(pair.first);
             }
             emit sendData(PT01sendRemainingList,
-                          QVariant::fromValue(remainingList));
+                          QVariant::fromValue(basesList));
         }
 
         reorderedMeasurements.clear();
@@ -224,7 +227,14 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
     case PT01sendRemainingList: {
         if(isMaster) {
         } else {
-            remainingList = data.value<IndexList>();
+            BoolList basesList = data.value<BoolList>();
+            Q_ASSERT(list.size() == basesList.size());
+            remainingList.clear();
+            for(SIndex index = 0; index < list.size(); index++) {
+                const IndexBoolPair &pair = list.at(index);
+                if(basesList.at(index) == pair.second)
+                    remainingList.append(pair.first);
+            }
             emit sendData(PT01sendRemainingList);
         }
         emit logMessage(QString("#02: Remaining measurements after sifting (same base): %1 (%2%)").
