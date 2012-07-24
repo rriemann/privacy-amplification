@@ -224,3 +224,9 @@ void MainWindow::processStop()
     actionStart->setEnabled(true);
     state = CSready;
 }
+
+
+void MainWindow::closeEvent(QCloseEvent* /*event*/)
+{
+    qApp->quit();
+}

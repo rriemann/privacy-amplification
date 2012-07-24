@@ -46,6 +46,8 @@ private:
     bool clientReady; // file loaded
     ConnectionState state;
 
+    void closeEvent(QCloseEvent *event);
+
 private slots:
     void connectClicked();
     void logMessage(QString entry, Qt::GlobalColor backgroundColor = Qt::white);
