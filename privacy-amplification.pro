@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui network
+QT       += core gui network thread
 
 TARGET = privacy-amplification
 TEMPLATE = app
@@ -16,7 +16,8 @@ SOURCES += main.cpp\
     server.cpp \
     connection.cpp \
     file.cpp \
-    qkdprocessor.cpp
+    qkdprocessor.cpp \
+    demomode.cpp
 
 HEADERS  += mainwindow.h \
     client.h \
@@ -24,6 +25,7 @@ HEADERS  += mainwindow.h \
     connection.h \
     file.h \
     measurement.h \
-    qkdprocessor.h
+    qkdprocessor.h \
+    demomode.h
 
 FORMS    += mainwindow.ui
