@@ -6,37 +6,29 @@ using std::max;
 using std::random_shuffle;
 #include <qmath.h>
 #include <QTime>
-#include <QImage>
 #include <QRgb>
 #include <QDataStream>
 #include <QFile>
-#include <QPixmap>
 #include <QLabel>
 #include <qdebug.h>
 
-Q_DECLARE_METATYPE(IndexList)
-static int idIndexList = qRegisterMetaType<IndexList>();
-static int id6 = qRegisterMetaTypeStreamOperators<IndexList>();
-
-typedef QPair<Index,bool> IndexBoolPair;
-Q_DECLARE_METATYPE(IndexBoolPair)
-static int id7 = qRegisterMetaType<IndexBoolPair>();
-static int id8 = qRegisterMetaTypeStreamOperators<IndexBoolPair>();
-
-typedef QList<IndexBoolPair> IndexBoolPairList;
-Q_DECLARE_METATYPE(IndexBoolPairList)
-static int id9  = qRegisterMetaType<IndexBoolPairList>();
-static int id10 = qRegisterMetaTypeStreamOperators<IndexBoolPairList>();
-
-typedef QList<bool> BoolList;
-Q_DECLARE_METATYPE(BoolList)
-static int id11 = qRegisterMetaType<BoolList>();
-static int id12 = qRegisterMetaTypeStreamOperators<BoolList>();
+const int QKDProcessor::idIndexList = qRegisterMetaType<IndexList>();
 
 QKDProcessor::QKDProcessor(QObject *parent) :
     QObject(parent), measurements(0), isMaster(false), state(CSready)
 {
     qsrand(QTime::currentTime().msec());
+
+    qRegisterMetaTypeStreamOperators<IndexList>();
+
+    qRegisterMetaType<IndexBoolPair>();
+    qRegisterMetaTypeStreamOperators<IndexBoolPair>();
+
+    qRegisterMetaType<IndexBoolPairList>();
+    qRegisterMetaTypeStreamOperators<IndexBoolPairList>();
+
+    qRegisterMetaType<BoolList>();
+    qRegisterMetaTypeStreamOperators<BoolList>();
 }
 
 void QKDProcessor::clearMeasurements()
@@ -107,6 +99,11 @@ void QKDProcessor::setMeasurements(Measurements *measurements)
     this->measurements = measurements;
 }
 
+void QKDProcessor::setMaster(bool isMaster)
+{
+    this->isMaster = isMaster;
+}
+
 QKDProcessor::~QKDProcessor()
 {
     clearMeasurements();
@@ -169,21 +166,6 @@ Measurements QKDProcessor::reorderMeasurements(const Measurements measurements, 
 
 void QKDProcessor::incomingData(quint8 type, QVariant data)
 {
-    static IndexBoolPairList list;
-    static IndexList remainingList;
-    static Index errorEstimationSampleSize;
-    static BoolList boolList;
-    static Index errorCounter;
-    static qreal error;
-    static quint16 k1; // initial block size
-    static BoolList parities;
-    static IndexList corruptBlocks;
-    static QList<Measurements> reorderedMeasurements;
-    static quint16 blockSize;
-    static quint16 binaryBlockSize;
-    static Index blockCount;
-    static quint8 runIndex;
-    static Index transferedBitsCounter; // number of bits known to eve
 
     switch((PackageType)type) {
     // Sifting Procedure
@@ -245,7 +227,6 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             foreach(Index index, remainingList) {
                 siftedMeasurements.append(measurements->at(index));
             }
-            //reorderedMeasurements.append(siftedMeasurements);
             reorderedMeasurements.append(siftedMeasurements);
 
         }
@@ -527,9 +508,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             }
         }
         image.save(QString("outfile_%1.png").arg(isMaster ? "alice" : "bob"));
-        static QLabel *showImage = new QLabel(0, Qt::Dialog);
-        showImage->setPixmap(QPixmap::fromImage(image));
-        showImage->show();
+        emit imageGenerated(image);
         return;
     }
 
@@ -551,16 +530,17 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             emit logMessage(QString("Ergebnis: %1 (%2%) Bit-Fehler").arg(errors).
                             arg(100.0*errors/size));
         }
+
+        emit finished();
+
         return;
     }
 
     }
 }
 
-void QKDProcessor::start(bool isMaster)
+void QKDProcessor::start()
 {
-    this->isMaster = isMaster;
-
     if(isMaster) { // this is Alice
         // #1 we kindly ask Bob for a list a received bits in first range from 0-quint32
         state = CS01;

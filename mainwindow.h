@@ -4,6 +4,7 @@
 #include "ui_mainwindow.h"
 
 #include <QLabel>
+#include <QImage>
 
 #include "client.h"
 #include "qkdprocessor.h"
@@ -56,6 +57,7 @@ private slots:
     void incomingData(quint8 type, QVariant data);
     void sendTextMessage();
     inline void sendHaveFile() {client.sendData(PThaveFile, (bool)file);}
+    void showImage(QImage image);
 
     void fileClose();
     void processStart();

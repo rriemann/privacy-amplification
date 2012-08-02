@@ -4,6 +4,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QTime>
+#include <QPixmap>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent), file(0), connectionEstablished(false), clientReady(false), state(CSready)
@@ -26,6 +27,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(&qkdp, SIGNAL(logMessage(QString,Qt::GlobalColor)), this, SLOT(logMessage(QString,Qt::GlobalColor)));
     //connect(&client, SIGNAL(receiveData(quint8,QVariant)), &qkdp, SLOT(incomingData(quint8,QVariant)));
     connect(&qkdp, SIGNAL(sendData(quint8,QVariant)), &client, SLOT(sendData(quint8,QVariant)));
+    connect(&qkdp, SIGNAL(imageGenerated(QImage)), this, SLOT(showImage(QImage)));
 
 
     connect(actionConnect, SIGNAL(triggered()), this, SLOT(connectClicked()));
@@ -131,7 +133,8 @@ void MainWindow::incomingData(quint8 type, QVariant data)
         }
         Q_ASSERT(file);
         qkdp.setMeasurements(file->getMeasurements(isMaster));
-        qkdp.start(isMaster);
+        qkdp.setMaster(isMaster);
+        qkdp.start();
         logMessage("QKD Processor started");
         state = CSprocessing;
         return;
@@ -145,6 +148,13 @@ void MainWindow::sendTextMessage()
     logMessage(lineEdit->text(), Qt::cyan);
     client.sendData(PTtextMessage, lineEdit->text());
     lineEdit->setText(QString());
+}
+
+void MainWindow::showImage(QImage image)
+{
+    static QLabel *imageLabel = new QLabel(0, Qt::Dialog);
+    imageLabel->setPixmap(QPixmap::fromImage(image));
+    imageLabel->show();
 }
 
 void MainWindow::fileOpen(QString fileName)
