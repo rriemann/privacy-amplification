@@ -17,7 +17,8 @@ SOURCES += main.cpp\
     connection.cpp \
     file.cpp \
     qkdprocessor.cpp \
-    demomode.cpp
+    demomode.cpp \
+    authenticator.cpp
 
 HEADERS  += mainwindow.h \
     client.h \
@@ -26,6 +27,7 @@ HEADERS  += mainwindow.h \
     file.h \
     measurement.h \
     qkdprocessor.h \
-    demomode.h
+    demomode.h \
+    authenticator.h
 
 FORMS    += mainwindow.ui
