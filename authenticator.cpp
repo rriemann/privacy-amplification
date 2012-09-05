@@ -1,4 +1,5 @@
 #include "authenticator.h"
+#include <qdebug.h>
 
 Authenticator::Authenticator(QString fileName, QObject *parent) :
     QFile(fileName, parent), level(1)
@@ -55,7 +56,8 @@ QByteArray Authenticator::token(const QByteArray &data)
 
     } while(outData->size() > level);
 
-    QByteArray result = QByteArray(*outData);
+    QByteArray result = QByteArray::fromRawData(outData->data(), outData->size());
+    qDebug() << result.toPercentEncoding();
 
     delete inData;
     delete outData;
@@ -77,12 +79,11 @@ bool Authenticator::check(const QByteArray &data)
     return (check == result);
 }
 
-QByteArray &Authenticator::authenticate(QByteArray &data, bool &valid)
+bool Authenticator::authenticate(QByteArray &data)
 {
     QByteArray check = data.right(level);
     data.chop(level);
-    valid = (check == token(data));
-    return data;
+    return (check == token(data));
 }
 
 quint16 Authenticator::getSecurityLevel()

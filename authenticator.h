@@ -16,7 +16,7 @@ public:
     bool check(const QByteArray &data);
 
     QByteArray& tokenize(QByteArray &data);
-    QByteArray& authenticate(QByteArray &data, bool &valid);
+    bool authenticate(QByteArray &data);
     quint16 getSecurityLevel();
     
 signals:

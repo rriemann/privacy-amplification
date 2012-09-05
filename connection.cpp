@@ -21,29 +21,22 @@ void Connection::receiveData()
     if (this->bytesAvailable() < blockSize)
         return;
 
-    char *buffer;
-    quint32 length;
-    in.readBytes(buffer, length);
-    QByteArray block(buffer, length); // deep copy of buffer
-    delete [] buffer;
-    bool valid;
-    authenticator.authenticate(block, valid);
-    if(valid) {
-        emit logMessage("authentication valid!");
+    QByteArray block = this->read(blockSize);
+    if(authenticator.authenticate(block)) {
+        emit logMessage("authentication successfull", Qt::darkYellow);
+        QDataStream bufferStream(&block, QIODevice::ReadOnly);
+        bufferStream.setVersion(streamVersion);
+
+        quint16 type;
+        bufferStream >> type;
+
+        QVariant data;
+        bufferStream >> data;
+
+        emit receivedData((PackageType)type, data);
     } else {
-        emit logMessage("authentication failed!");
+        emit logMessage("authentication failed", Qt::darkRed);
     }
-    QDataStream bufferStream(&block, QIODevice::ReadOnly);
-    bufferStream.setVersion(streamVersion);
-
-    quint16 type;
-    bufferStream >> type;
-
-    QVariant data;
-    bufferStream >> data;
-
-
-    emit receivedData((PackageType)type, data);
     blockSize = 0;
 
 }
@@ -58,9 +51,8 @@ void Connection::sendData(const PackageType type, const QVariant &data)
     out << data;
     out.device()->seek(0);
     out << (quint64)(block.size() + authenticator.getSecurityLevel() - sizeof(qint64));
-    Q_ASSERT(out.device()->size() == block.size());
     out.device()->seek(block.size());
-    out << authenticator.token(block);
+    out.writeRawData(authenticator.token(block), authenticator.getSecurityLevel());
 
     qint64 wsize = this->write(block);
     Q_UNUSED(wsize);
