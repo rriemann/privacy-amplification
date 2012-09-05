@@ -44,7 +44,7 @@ QByteArray Authenticator::token(const QByteArray &data)
             if(!(bool)(index & 1)) { // index is even
                 resultByteBuffer  = product >> 4; // division by 2^4
             } else { // index is odd
-                resultByteBuffer &= product;
+                resultByteBuffer |= product;
                 outData->append((char)resultByteBuffer);
                 resultByteBuffer = 0;
             }

@@ -50,9 +50,9 @@ void Connection::sendData(const PackageType type, const QVariant &data)
     out << (quint16)type;
     out << data;
     out.device()->seek(0);
-    out << (quint64)(block.size() + authenticator.getSecurityLevel() - sizeof(qint64));
-    out.device()->seek(block.size());
-    out.writeRawData(authenticator.token(block), authenticator.getSecurityLevel());
+    out << (qint64)(block.size() + authenticator.getSecurityLevel() - sizeof(qint64));
+
+    block.append(authenticator.token(block.right(block.size()-sizeof(qint64))));
 
     qint64 wsize = this->write(block);
     Q_UNUSED(wsize);
