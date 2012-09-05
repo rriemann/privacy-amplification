@@ -1,22 +1,22 @@
 #include "authenticator.h"
 
 Authenticator::Authenticator(QString fileName, QObject *parent) :
-    QFile(fileName, parent)
+    QFile(fileName, parent), level(1)
 {
     if(!this->open(QIODevice::ReadOnly)) {
         exit(12);
     }
+    this->seek(0);
 }
 
 Authenticator::~Authenticator() {
     this->close();
 }
 
-QByteArray *Authenticator::token(const QByteArray &data)
+QByteArray Authenticator::token(const QByteArray &data)
 {
     QByteArray *outData = new QByteArray(data);
     QByteArray *inData  = new QByteArray;
-    this->seek(0);
 
     typedef quint8  bufferType;
     typedef quint16 bufferTypeBig;
@@ -33,12 +33,12 @@ QByteArray *Authenticator::token(const QByteArray &data)
         outData->clear();
         resultByteBuffer = 0;
         const int size = inData->size();
+        this->getChar((char*)&privateKey);
+        if(!(bool)(privateKey & 1)) {
+            privateKey += 1; // make privateKey an odd number
+        }
         for(int index = 0; index < size; index++) {
             value = (bufferType)inData->at(index);
-            this->getChar((char*)&privateKey);
-            if(!(bool)(privateKey & 1)) {
-                privateKey += 1; // make privateKey an odd number
-            }
             product = ((value*privateKey) & 240); //  & 240 implements modulo 2^8
             if(!(bool)(index & 1)) { // index is even
                 resultByteBuffer  = product >> 4; // division by 2^4
@@ -55,15 +55,39 @@ QByteArray *Authenticator::token(const QByteArray &data)
 
     } while(outData->size() > level);
 
-    delete inData;
+    QByteArray result = QByteArray(*outData);
 
-    return outData;
+    delete inData;
+    delete outData;
+
+    return result;
 }
 
-bool Authenticator::authenticate(const QByteArray &data)
+QByteArray &Authenticator::tokenize(QByteArray &data)
 {
-    Q_UNUSED(data)
-    return true;
+    return data.append(token(data));
+}
+
+bool Authenticator::check(const QByteArray &data)
+{
+    QByteArray check = data.right(level);
+
+    QByteArray result = token(data.left(data.size()-level));
+
+    return (check == result);
+}
+
+QByteArray &Authenticator::authenticate(QByteArray &data, bool &valid)
+{
+    QByteArray check = data.right(level);
+    data.chop(level);
+    valid = (check == token(data));
+    return data;
+}
+
+quint16 Authenticator::getSecurityLevel()
+{
+    return level;
 }
 
 

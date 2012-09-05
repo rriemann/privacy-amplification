@@ -12,8 +12,12 @@ public:
     explicit Authenticator(QString fileName, QObject *parent = 0);
     ~Authenticator();
 
-    QByteArray* token (const QByteArray &data);
-    bool authenticate(const QByteArray &data);
+    QByteArray token (const QByteArray &data);
+    bool check(const QByteArray &data);
+
+    QByteArray& tokenize(QByteArray &data);
+    QByteArray& authenticate(QByteArray &data, bool &valid);
+    quint16 getSecurityLevel();
     
 signals:
     

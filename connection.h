@@ -2,6 +2,7 @@
 #define CONNECTION_H
 
 #include <QTcpSocket>
+#include "authenticator.h"
 
 class Connection : public QTcpSocket
 {
@@ -30,6 +31,7 @@ private slots:
 private:
     qint64 blockSize;
     static const QDataStream::Version streamVersion;
+    Authenticator authenticator;
     
 };
 
