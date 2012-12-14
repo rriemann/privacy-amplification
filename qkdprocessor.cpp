@@ -485,7 +485,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                         arg(100.0*transferedBitsCounter/reorderedMeasurements.last().size()));
         emit logMessage("fertig!");
 
-        qreal removeRatio = error + (qreal)transferedBitsCounter/
+        qreal removeRatio = error*2 + (qreal)transferedBitsCounter/
                                            reorderedMeasurements.last().size();
         QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(),
                                                    1-removeRatio);
