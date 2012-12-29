@@ -39,28 +39,6 @@ void QKDProcessor::clearMeasurements()
     }
 }
 
-
-const char *byte_to_binary(const int x) {
-    static char b[9];
-    b[0] = '\0';
-    for (int z = 128; z > 0; z >>= 1) {
-        strcat(b, ((x & z) == z) ? "1" : "0");
-    }
-
-    return b;
-}
-
-const char *byte64_to_binary(const quint64 x) {
-    static char b[65];
-    b[0] = '\0';
-    for (quint64 z = Q_UINT64_C(9223372036854775808); z > 0; z >>= 1) {
-        strcat(b, ((x & z) == z) ? "1" : "0");
-    }
-
-    return b;
-}
-
-
 QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, const qreal ratio)
 {
     /* - count of bits to represent integer: N=ceil(log2(int))
@@ -84,26 +62,22 @@ QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, c
     typedef char finalKeyBufferType;
 
     finalKeyBufferType buffer = 0;
-    quint8 bufferSize = sizeof(finalKeyBufferType)*8;
-    quint8 bitCount = qFloor(bitLimitSmall*ratio);
+    const quint8 bufferSize = sizeof(finalKeyBufferType)*8;
+    const quint8 bitCount = qFloor(bitLimitSmall*ratio);
 
     quint8 pos = 0;
     quint8 bufferPos = 0;
-    qDebug("test: %s", byte64_to_binary(Q_UINT64_C(9223372036854775808)));
+    const quint64 quint64_1 = Q_UINT64_C(1);
     foreach(Measurement *measurement, measurements) {
         bufferBase |= (bufferTypeSmall)measurement->base << pos;
         bufferBits |= (bufferTypeSmall)measurement->bit  << pos;
         pos++;
         if(pos == bitLimitSmall) {
-            qDebug("1: %s", byte64_to_binary(bufferBase));
-            qDebug("2: %s", byte64_to_binary(bufferBits));
             pos = 0;
             bufferType temp = (bufferType)bufferBase*(bufferType)bufferBits;
-            qDebug("3: %s", byte64_to_binary(temp));
             for(quint8 bitPos = 0; bitPos < bitCount; bitPos++) {
                 // http://stackoverflow.com/a/2249738/1407622
-                buffer |= ((temp & ( Q_UINT64_C(1) << bitPos )) >> bitPos) << bufferPos;
-                qDebug("bitpos: %02d, bufferpos: %02d, buffer: %s", (int)bitPos, (int)bufferPos, byte_to_binary(buffer));
+                buffer |= ((temp & ( quint64_1 << bitPos )) >> bitPos) << bufferPos;
                 bufferPos++;
                 if(bufferPos == bufferSize) {
                     bufferPos = 0;
@@ -499,8 +473,6 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         qreal removeRatio = error*2
                           + (qreal)(transferedBitsCounter+securityParameter)/
                                         reorderedMeasurements.last().size();
-        if(!isMaster)
-            return; // TODO
         QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(),
                                                    1-removeRatio);
         {
