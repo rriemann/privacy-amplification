@@ -39,6 +39,28 @@ void QKDProcessor::clearMeasurements()
     }
 }
 
+
+const char *byte_to_binary(const int x) {
+    static char b[9];
+    b[0] = '\0';
+    for (int z = 128; z > 0; z >>= 1) {
+        strcat(b, ((x & z) == z) ? "1" : "0");
+    }
+
+    return b;
+}
+
+const char *byte64_to_binary(const quint64 x) {
+    static char b[65];
+    b[0] = '\0';
+    for (quint64 z = Q_UINT64_C(9223372036854775808); z > 0; z >>= 1) {
+        strcat(b, ((x & z) == z) ? "1" : "0");
+    }
+
+    return b;
+}
+
+
 QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, const qreal ratio)
 {
     /* - count of bits to represent integer: N=ceil(log2(int))
@@ -67,16 +89,21 @@ QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, c
 
     quint8 pos = 0;
     quint8 bufferPos = 0;
+    qDebug("test: %s", byte64_to_binary(Q_UINT64_C(9223372036854775808)));
     foreach(Measurement *measurement, measurements) {
         bufferBase |= (bufferTypeSmall)measurement->base << pos;
         bufferBits |= (bufferTypeSmall)measurement->bit  << pos;
         pos++;
         if(pos == bitLimitSmall) {
+            qDebug("1: %s", byte64_to_binary(bufferBase));
+            qDebug("2: %s", byte64_to_binary(bufferBits));
             pos = 0;
             bufferType temp = (bufferType)bufferBase*(bufferType)bufferBits;
+            qDebug("3: %s", byte64_to_binary(temp));
             for(quint8 bitPos = 0; bitPos < bitCount; bitPos++) {
                 // http://stackoverflow.com/a/2249738/1407622
-                buffer |= ((temp & ( 1 << bitPos )) >> bitPos) << bufferPos;
+                buffer |= ((temp & ( Q_UINT64_C(1) << bitPos )) >> bitPos) << bufferPos;
+                qDebug("bitpos: %02d, bufferpos: %02d, buffer: %s", (int)bitPos, (int)bufferPos, byte_to_binary(buffer));
                 bufferPos++;
                 if(bufferPos == bufferSize) {
                     bufferPos = 0;
@@ -325,7 +352,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 
     case PT03prepareBlockParities: {
         if(data.userType() == idIndexList) {
-            reorderedMeasurements.append(reorderMeasurements(reorderedMeasurements.last(), data.value<IndexList>()));
+            reorderedMeasurements.append(reorderMeasurements(
+                reorderedMeasurements.last(), data.value<IndexList>()));
             runIndex = reorderedMeasurements.size() - 1;
 
         } else if(data.type() == (QVariant::Type)QMetaType::UInt) {
@@ -338,20 +366,12 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         blockCount = reorderedMeasurements.at(runIndex).size()/blockSize;
         emit logMessage(QString("in PT03prepareBlockParities, reorderedMeasurements.size = %1, runIndex = %2, blockSize = %3").
                         arg(reorderedMeasurements.size()).arg(runIndex).arg(blockSize));
-        //emit logMessage(QString("ki: %1").arg(blockSize));
-        /*
-        orders.append(data.value<IndexList>());
-        emit logMessage(QString("elements in orders.last: %1").
-                        arg(orders.last().size()));
-        reorderedMeasurements.append(reorderMeasurements(orders.last()));
-        */
         parities.clear();
         Index lastIndex = reorderedMeasurements.at(runIndex).size() - blockSize;
         for(Index index = 0; index <= lastIndex; index += blockSize) {
             parities.append(calculateParity(reorderedMeasurements.at(runIndex),
                                             index, blockSize));
         }
-        // emit logMessage(QString("elements in parities: %1").arg(parities.size()));
 
         if(isMaster) {
             emit sendData(PT04reportBlockParities,
@@ -362,7 +382,6 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 
     }
     case PT04reportBlockParities: {
-        // emit logMessage("in PT04reportBlockParities", Qt::green);
         if(!isMaster) {
             qint64 size = parities.size();
             Q_ASSERT(size > 0);
@@ -385,18 +404,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                             arg(blockCount).
                             arg((double)corruptBlocks.size()/blockCount*100));
         }
-        /*
-        {
-            for(Index j = 0; (SIndex)j < corruptBlocks.size(); j++) {
-                Index index = corruptBlocks.at(j);
-                QString strIndex = QString("%1: ").arg(index, 3, 10, QLatin1Char(' '));
-                Index end = index+binaryBlockSize;
-                for(Index i = index; i < end; i++)
-                    strIndex += QString("%1 ").arg((int)(reorderedMeasurements.last().at(i)->bit));
-                emit logMessage(strIndex);
-            }
-        }
-        */
+
         if(isMaster) {
             if(corruptBlocks.empty()) {
                 runIndex++;
@@ -410,7 +418,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                     emit sendData(PT03prepareBlockParities, (uint)runIndex);
                     this->incomingData(PT03prepareBlockParities);
                 } else if(reorderedMeasurements.size() < runCount) {
-                    QVariant data = QVariant::fromValue<IndexList>(getRandomList(reorderedMeasurements.last().size()));
+                    QVariant data = QVariant::fromValue<IndexList>(
+                        getRandomList(reorderedMeasurements.last().size()));
                     emit sendData(PT03prepareBlockParities, data);
                     this->incomingData(PT03prepareBlockParities, data);
                 } else {
@@ -425,7 +434,6 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 
     case PT05startBinary: {
         binaryBlockSize = binaryBlockSize/2;
-        // emit logMessage(QString("in PT05startBinary with binaryBlockSize = %1").arg(binaryBlockSize));
         parities.clear();
         if(isMaster || (!isMaster && binaryBlockSize > 1)) {
             foreach(Index index, corruptBlocks) {
@@ -485,8 +493,14 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                         arg(100.0*transferedBitsCounter/reorderedMeasurements.last().size()));
         emit logMessage("fertig!");
 
-        qreal removeRatio = error*2 + (qreal)transferedBitsCounter/
-                                           reorderedMeasurements.last().size();
+        // An increasing security parameter s lowers the upper bound of Eve's
+        // information on the key I <= 2^(-s)/ln(2); 2^(-7)/ln(2) = 0.01 bits
+        const quint8 securityParameter = 7;
+        qreal removeRatio = error*2
+                          + (qreal)(transferedBitsCounter+securityParameter)/
+                                        reorderedMeasurements.last().size();
+        if(!isMaster)
+            return; // TODO
         QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(),
                                                    1-removeRatio);
         {
