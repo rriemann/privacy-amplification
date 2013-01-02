@@ -18,7 +18,6 @@ class QKDProcessor : public QObject
 {
     Q_OBJECT
 
-
 public:
     explicit QKDProcessor(QObject *parent = 0);
     ~QKDProcessor();
@@ -36,20 +35,19 @@ public:
     };
 
 private:
-    Measurements* measurements;
-    bool isMaster;
     quint16 calculateInitialBlockSize(qreal errorProbability);
     bool calculateParity(const Measurements measurements, const Index index, const quint16 &size) const;
     inline IndexList getOrderedList(Index range);
+    static ptrdiff_t getRandomNumberFromFile(ptrdiff_t i);
     IndexList getRandomList(Index range);
     static Measurements reorderMeasurements(const Measurements measurements, const IndexList order);
-    const static quint8 runCount = 4;
-    const static qreal errorEstimationSampleRatio = 0.02;
     void clearMeasurements();
     static QByteArray privacyAmplification(const Measurements measurements, const qreal ratio);
 
-
-
+    Measurements* measurements;
+    bool isMaster;
+    const static quint8 runCount = 4;
+    const static qreal errorEstimationSampleRatio = 0.02;
     IndexBoolPairList list;
     IndexList remainingList;
     Index errorEstimationSampleSize;
@@ -65,7 +63,6 @@ private:
     Index blockCount;
     quint8 runIndex;
     Index transferedBitsCounter; // number of bits known to eve
-
     static const int idIndexList;
     
 signals:
@@ -80,7 +77,6 @@ public slots:
 
     void setMeasurements(Measurements* measurements);
     void setMaster(bool isMaster);
-    
 };
 
 Q_DECLARE_METATYPE(IndexList)

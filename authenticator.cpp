@@ -57,7 +57,7 @@ QByteArray Authenticator::token(const QByteArray &data)
     } while(outData->size() > level);
 
     QByteArray result = QByteArray::fromRawData(outData->data(), outData->size());
-    qDebug() << result.toPercentEncoding();
+    // qDebug() << result.toPercentEncoding();
 
     delete inData;
     delete outData;

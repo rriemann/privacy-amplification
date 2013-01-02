@@ -9,6 +9,7 @@ using std::random_shuffle;
 #include <QRgb>
 #include <QDataStream>
 #include <QFile>
+#include <QDir>
 #include <QLabel>
 #include <qdebug.h>
 
@@ -17,8 +18,6 @@ const int QKDProcessor::idIndexList = qRegisterMetaType<IndexList>();
 QKDProcessor::QKDProcessor(QObject *parent) :
     QObject(parent), measurements(0), isMaster(false)
 {
-    qsrand(QTime::currentTime().msec());
-
     qRegisterMetaTypeStreamOperators<IndexList>();
 
     qRegisterMetaType<IndexBoolPair>();
@@ -147,11 +146,43 @@ IndexList QKDProcessor::getOrderedList(Index range)
     return orderedList;
 }
 
+ptrdiff_t QKDProcessor::getRandomNumberFromFile(ptrdiff_t i)
+{
+    static QFile randomNumberFile("/home/rriemann/go/Masterarbeit/sampledata-100MB.bin");
+    if(!randomNumberFile.isOpen()) {
+        Q_ASSERT(randomNumberFile.open(QIODevice::ReadOnly));
+        randomNumberFile.seek(200);
+    }
+    static quint8 tmp = 0;
+    quint8 bytes = ceil(log2(abs(i)));
+    static quint64 counter = 0;
+    static quint64 counter2 = 0;
+    counter += bytes;
+    if(counter2 % 100 == 0)
+        qDebug() << (double)counter/1024;
+    counter2++;
+    /*
+    ptrdiff_t number = 0;
+    for(quint8 j = 0; j < bytes; j++) {
+        number = number << 8; // shift by 1 byte
+        if(!randomNumberFile.getChar((char*) &tmp))
+            qFatal("random number file '%s' doesn't provide enough numbers",
+                   qPrintable(randomNumberFile.fileName()));
+        number |= tmp;
+    }
+    return number % i;
+    */
+    randomNumberFile.getChar((char*) &tmp);
+    // randomNumberFile.close();
+    return tmp % i;
+}
+
+
 IndexList QKDProcessor::getRandomList(Index range)
 {
     IndexList list = getOrderedList(range);
     // http://www.cplusplus.com/reference/algorithm/random_shuffle/
-    random_shuffle(list.begin(), list.end());
+    random_shuffle(list.begin(), list.end(), QKDProcessor::getRandomNumberFromFile);
     return list;
 }
 
