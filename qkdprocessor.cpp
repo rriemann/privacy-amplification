@@ -15,7 +15,7 @@ using std::random_shuffle;
 const int QKDProcessor::idIndexList = qRegisterMetaType<IndexList>();
 
 QKDProcessor::QKDProcessor(QObject *parent) :
-    QObject(parent), measurements(0), isMaster(false), state(CSready)
+    QObject(parent), measurements(0), isMaster(false)
 {
     qsrand(QTime::currentTime().msec());
 
@@ -67,7 +67,7 @@ QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, c
 
     quint8 pos = 0;
     quint8 bufferPos = 0;
-    const quint64 quint64_1 = Q_UINT64_C(1);
+    const bufferType bufferType_1 = Q_UINT64_C(1);
     foreach(Measurement *measurement, measurements) {
         bufferBase |= (bufferTypeSmall)measurement->base << pos;
         bufferBits |= (bufferTypeSmall)measurement->bit  << pos;
@@ -77,7 +77,7 @@ QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, c
             bufferType temp = (bufferType)bufferBase*(bufferType)bufferBits;
             for(quint8 bitPos = 0; bitPos < bitCount; bitPos++) {
                 // http://stackoverflow.com/a/2249738/1407622
-                buffer |= ((temp & ( quint64_1 << bitPos )) >> bitPos) << bufferPos;
+                buffer |= ((temp & ( bufferType_1 << bitPos )) >> bitPos) << bufferPos;
                 bufferPos++;
                 if(bufferPos == bufferSize) {
                     bufferPos = 0;
@@ -528,10 +528,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 void QKDProcessor::start()
 {
     if(isMaster) { // this is Alice
-        // #1 we kindly ask Bob for a list a received bits in first range from 0-quint32
-        state = CS01;
+        // we kindly ask Bob for a list a received bits in first range from 0-quint32
         emit sendData(PT01sendReceivedList);
-    } else { // this is Bob
-        state = CSstarted;
-    }
+    } // Bob doesn't do anything here
 }

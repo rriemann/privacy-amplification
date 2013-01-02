@@ -35,16 +35,9 @@ public:
         PT07evaluation
     };
 
-    enum ConnectionState {
-        CSready,
-        CSstarted,
-        CS01
-    };
-
 private:
     Measurements* measurements;
     bool isMaster;
-    ConnectionState state;
     quint16 calculateInitialBlockSize(qreal errorProbability);
     bool calculateParity(const Measurements measurements, const Index index, const quint16 &size) const;
     inline IndexList getOrderedList(Index range);
