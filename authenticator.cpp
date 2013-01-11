@@ -11,6 +11,7 @@ Authenticator::Authenticator(QString fileName, QObject *parent) :
 }
 
 Authenticator::~Authenticator() {
+    qDebug() << QString("authenticator file position: %1 byte").arg(this->pos());
     this->close();
 }
 
