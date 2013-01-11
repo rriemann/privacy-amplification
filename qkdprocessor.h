@@ -38,7 +38,6 @@ private:
     quint16 calculateInitialBlockSize(qreal errorProbability);
     bool calculateParity(const Measurements measurements, const Index index, const quint16 &size) const;
     inline IndexList getOrderedList(Index range);
-    static ptrdiff_t getRandomNumberFromFile(ptrdiff_t i);
     IndexList getRandomList(Index range);
     static Measurements reorderMeasurements(const Measurements measurements, const IndexList order);
     void clearMeasurements();

@@ -1,23 +1,28 @@
 #include "qkdprocessor.h"
 
-#include <limits>
-#include <algorithm>
-using std::max;
-using std::random_shuffle;
 #include <qmath.h>
+#include <qdebug.h>
 #include <QTime>
 #include <QRgb>
 #include <QDataStream>
 #include <QFile>
-#include <QDir>
-#include <QLabel>
-#include <qdebug.h>
+#include <limits>
+#include <algorithm>
+using std::max;
+using std::random_shuffle;
 
 const int QKDProcessor::idIndexList = qRegisterMetaType<IndexList>();
 
 QKDProcessor::QKDProcessor(QObject *parent) :
     QObject(parent), measurements(0), isMaster(false)
 {
+    // make sure tu initialize the pseudo RNG for std::random_shuffle
+#ifdef QT_NO_DEBUG
+    qsrand(QTime::currentTime().msec()); srand(QTime::currentTime().msec()+1);
+#else
+    qsrand(0); srand(0); // make the class deterministic for debugging purposes
+#endif
+
     qRegisterMetaTypeStreamOperators<IndexList>();
 
     qRegisterMetaType<IndexBoolPair>();
@@ -40,6 +45,7 @@ void QKDProcessor::clearMeasurements()
 
 QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, const qreal ratio)
 {
+    Q_ASSERT(ratio > 0);
     /* - count of bits to represent integer: N=ceil(log2(int))
      * - count of bits to represent squared integer: 2N
      * - must have double size of bufferTypeSmall to prevent integer overflow
@@ -111,12 +117,13 @@ QKDProcessor::~QKDProcessor()
 
 quint16 QKDProcessor::calculateInitialBlockSize(qreal errorProbability)
 {
+    // values as proposed by Brassard and Savail(1994)
     if(errorProbability < 0.02) {
-        return 80;
+        return 64; // proposed: 80, but protocol is not convergent otherwise
     } else if(errorProbability < 0.05) {
         return 16;
     } else if(errorProbability < 0.07) {
-        return 10;
+        return 8; // originally proposed: 10
     } else if(errorProbability < 0.1) {
         return 6;
     } else {
@@ -146,43 +153,12 @@ IndexList QKDProcessor::getOrderedList(Index range)
     return orderedList;
 }
 
-ptrdiff_t QKDProcessor::getRandomNumberFromFile(ptrdiff_t i)
-{
-    static QFile randomNumberFile("/home/rriemann/go/Masterarbeit/sampledata-100MB.bin");
-    if(!randomNumberFile.isOpen()) {
-        Q_ASSERT(randomNumberFile.open(QIODevice::ReadOnly));
-        randomNumberFile.seek(200);
-    }
-    static quint8 tmp = 0;
-    quint8 bytes = ceil(log2(abs(i)));
-    static quint64 counter = 0;
-    static quint64 counter2 = 0;
-    counter += bytes;
-    if(counter2 % 100 == 0)
-        qDebug() << (double)counter/1024;
-    counter2++;
-    /*
-    ptrdiff_t number = 0;
-    for(quint8 j = 0; j < bytes; j++) {
-        number = number << 8; // shift by 1 byte
-        if(!randomNumberFile.getChar((char*) &tmp))
-            qFatal("random number file '%s' doesn't provide enough numbers",
-                   qPrintable(randomNumberFile.fileName()));
-        number |= tmp;
-    }
-    return number % i;
-    */
-    randomNumberFile.getChar((char*) &tmp);
-    // randomNumberFile.close();
-    return tmp % i;
-}
-
 
 IndexList QKDProcessor::getRandomList(Index range)
 {
     IndexList list = getOrderedList(range);
     // http://www.cplusplus.com/reference/algorithm/random_shuffle/
-    random_shuffle(list.begin(), list.end(), QKDProcessor::getRandomNumberFromFile);
+    random_shuffle(list.begin(), list.end());
     return list;
 }
 
@@ -283,7 +259,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
 
         if(isMaster) {
             IndexList order = getRandomList(reorderedMeasurements.first().size());
-            reorderedMeasurements.replace(0, reorderMeasurements(reorderedMeasurements.last(), order));
+            reorderedMeasurements.replace(0,reorderMeasurements(reorderedMeasurements.last(),
+                                                                order));
             emit sendData(PT02errorEstimationSendSample,
                           QVariant::fromValue<IndexList>(order));
         }
@@ -294,7 +271,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         emit logMessage(QString("Error Estimation started"), Qt::green);
         if(!isMaster) {
             IndexList order = data.value<IndexList>();
-            reorderedMeasurements.replace(0,reorderMeasurements(reorderedMeasurements.last(), order));
+            reorderedMeasurements.replace(0,reorderMeasurements(reorderedMeasurements.last(),
+                                                                order));
         }
         Q_ASSERT(reorderedMeasurements.size() == 1);
         Q_ASSERT(reorderedMeasurements.first().size() > 1);
@@ -369,7 +347,8 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         blockSize = k1*pow(2,runIndex);
         binaryBlockSize = blockSize;
         blockCount = reorderedMeasurements.at(runIndex).size()/blockSize;
-        emit logMessage(QString("in PT03prepareBlockParities, reorderedMeasurements.size = %1, runIndex = %2, blockSize = %3").
+        emit logMessage(QString("in PT03prepareBlockParities, reorderedMeasurements.size = %1,"
+                                "runIndex = %2, blockSize = %3").
                         arg(reorderedMeasurements.size()).arg(runIndex).arg(blockSize));
         parities.clear();
         Index lastIndex = reorderedMeasurements.at(runIndex).size() - blockSize;
@@ -496,7 +475,6 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                       k1*(2-pow(2,1-runCount));
         emit logMessage(QString("bitCounter: %1 (%2%)").arg(transferedBitsCounter).
                         arg(100.0*transferedBitsCounter/reorderedMeasurements.last().size()));
-        emit logMessage("fertig!");
 
         // An increasing security parameter s lowers the upper bound of Eve's
         // information on the key I <= 2^(-s)/ln(2); 2^(-7)/ln(2) = 0.01 bits
@@ -504,8 +482,13 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         qreal removeRatio = error*2
                           + (qreal)(transferedBitsCounter+securityParameter)/
                                         reorderedMeasurements.last().size();
-        QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(),
-                                                   1-removeRatio);
+        if(!(removeRatio < 1.0)) {
+            emit logMessage(QString("too much information revealed for privacy-amplification: %1%").
+                            arg(removeRatio*100), Qt::red);
+            return;
+        }
+        QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(), 1-removeRatio);
+        emit logMessage(QString("finished! (%1 byte)").arg(finalKey.size()));
         {
             QFile file(QString("outfile_%1.dat").arg(isMaster ? "alice" : "bob"));
             file.open(QIODevice::WriteOnly);
