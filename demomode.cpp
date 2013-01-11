@@ -17,8 +17,8 @@ DemoMode::DemoMode(QString fileName, QObject *parent) :
     connect(&bob,   SIGNAL(sendData(quint8,QVariant)), &alice, SLOT(incomingData(quint8,QVariant)));
 
     qRegisterMetaType<Qt::GlobalColor>();
-    connect(&alice, SIGNAL(logMessage(QString)), this, SLOT(logMessage(QString)));
-    connect(&bob,   SIGNAL(logMessage(QString)), this, SLOT(logMessage(QString)));
+    connect(&alice, SIGNAL(logMessage(QString)), this, SLOT(logMessageAlice(QString)));
+    connect(&bob,   SIGNAL(logMessage(QString)), this, SLOT(logMessageBob(QString)));
 
     alice.setMaster(true);
     alice.setMeasurements(file.getMeasurements(true));
@@ -45,4 +45,16 @@ DemoMode::DemoMode(QString fileName, QObject *parent) :
 void DemoMode::logMessage(QString entry)
 {
     qDebug("%s", qPrintable(entry));
+}
+
+void DemoMode::logMessageAlice(QString entry)
+{
+    static const QString alice("A: ");
+    logMessage(alice + entry);
+}
+
+void DemoMode::logMessageBob(QString entry)
+{
+    static const QString bob("B: ");
+    logMessage(bob + entry);
 }

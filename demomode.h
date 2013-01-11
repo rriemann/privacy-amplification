@@ -17,6 +17,8 @@ signals:
     
 public slots:
     void logMessage(QString entry);
+    void logMessageAlice(QString entry);
+    void logMessageBob(QString entry);
 
 private:
 
