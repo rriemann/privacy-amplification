@@ -11,6 +11,8 @@
 using std::max;
 using std::random_shuffle;
 
+#define who (isMaster ? "DA:" : "DB:")
+
 const int QKDProcessor::idIndexList = qRegisterMetaType<IndexList>();
 
 QKDProcessor::QKDProcessor(QObject *parent) :
@@ -117,15 +119,16 @@ QKDProcessor::~QKDProcessor()
 
 quint16 QKDProcessor::calculateInitialBlockSize(qreal errorProbability)
 {
-    // values as proposed by Brassard and Savail(1994)
+    // values follow the proposal of Brassard and Savail(1994), but are
+    // aligned to the power of 2 which is necessary for the binary scheme
     if(errorProbability < 0.02) {
-        return 64; // proposed: 80, but protocol is not convergent otherwise
+        return 64;
     } else if(errorProbability < 0.05) {
         return 16;
-    } else if(errorProbability < 0.07) {
-        return 8; // originally proposed: 10
     } else if(errorProbability < 0.1) {
-        return 6;
+        return 8;
+    } else if(errorProbability < 0.15) {
+        return 4;
     } else {
         emit logMessage(QString("EE: errorEstimation exceeded secure limit!"));
         return 4;
@@ -194,7 +197,6 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
         }
         emit logMessage(QString("#01: Valid measurements (containing 1 received photons): %1 (%2%)").
                         arg(list.size()).arg((double)list.size()*100/measurements->size()));
-
 
         if(isMaster) {
             IndexBoolPair pair;
@@ -425,6 +427,7 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                                                 index, binaryBlockSize));
             }
         }
+
         if(isMaster) {
             emit sendData(PT05startBinary,
                           QVariant::fromValue<BoolList>(parities));
