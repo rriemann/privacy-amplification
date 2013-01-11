@@ -44,5 +44,5 @@ DemoMode::DemoMode(QString fileName, QObject *parent) :
 
 void DemoMode::logMessage(QString entry)
 {
-    qDebug() << entry;
+    qDebug("%s", qPrintable(entry));
 }
