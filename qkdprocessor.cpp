@@ -11,8 +11,6 @@
 using std::max;
 using std::random_shuffle;
 
-#define who (isMaster ? "DA:" : "DB:")
-
 const int QKDProcessor::idIndexList = qRegisterMetaType<IndexList>();
 
 QKDProcessor::QKDProcessor(QObject *parent) :
@@ -99,6 +97,35 @@ QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, c
     // there might be fewer bits in finalKey than ratio*measurements->size()
     // this is due remaining (unused) bits in buffers
     return finalKey;
+}
+
+void QKDProcessor::simpleDumb(const Measurements measurements)
+{
+    QFile file("simpleDumb.dat");
+    file.open(QIODevice::Truncate|QIODevice::WriteOnly);
+    QFile fileBase("simpleDumbBase.dat");
+    fileBase.open(QIODevice::Truncate|QIODevice::WriteOnly);
+    quint8 bitcounter = 0;
+    char bitbuffer = 0;
+    char bitbufferBase = 0;
+    foreach(Measurement *measurement, measurements) {
+        if(measurement->bit) {
+            bitbuffer |= (1 << bitcounter);
+        }
+        if(measurement->base) {
+            bitbufferBase |= (1 << bitcounter);
+        }
+        bitcounter++;
+        if(bitcounter > 7) {
+            bitcounter = 0;
+            file.write(&bitbuffer, 1);
+            bitbuffer = 0;
+            fileBase.write(&bitbufferBase, 1);
+            bitbufferBase = 0;
+        }
+    }
+    file.close();
+    fileBase.close();
 }
 
 void QKDProcessor::setMeasurements(Measurements *measurements)
@@ -490,6 +517,10 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                             arg(removeRatio*100), Qt::red);
             return;
         }
+
+        if(isMaster)
+            simpleDumb(reorderedMeasurements.last());
+
         QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(), 1-removeRatio);
         emit logMessage(QString("finished! (%1 byte)").arg(finalKey.size()));
         {
