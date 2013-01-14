@@ -36,7 +36,7 @@ QByteArray Authenticator::token(const QByteArray &data)
         resultByteBuffer = 0;
         const int size = inData->size();
         this->getChar((char*)&privateKey);
-        if(!(bool)(privateKey & 1)) {
+        if(privateKey % 2 == 0) {
             privateKey += 1; // make privateKey an odd number
         }
         for(int index = 0; index < size; index++) {

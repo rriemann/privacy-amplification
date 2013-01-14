@@ -42,7 +42,6 @@ private:
     static Measurements reorderMeasurements(const Measurements measurements, const IndexList order);
     void clearMeasurements();
     static QByteArray privacyAmplification(const Measurements measurements, const qreal ratio);
-    void simpleDumb(const Measurements measurements);
 
     Measurements* measurements;
     bool isMaster;
