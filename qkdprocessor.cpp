@@ -8,6 +8,8 @@
 #include <QFile>
 #include <limits>
 #include <algorithm>
+#include <bitset>
+#include <QTextStream>
 using std::max;
 using std::random_shuffle;
 
@@ -79,6 +81,9 @@ QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, c
         pos++;
         if(pos == bitLimitSmall) {
             pos = 0;
+            if(bufferBase % 2 == 0) {
+                bufferBase += 1;
+            }
             bufferType temp = (bufferType)bufferBase*(bufferType)bufferBits;
             for(quint8 bitPos = 0; bitPos < bitCount; bitPos++) {
                 // http://stackoverflow.com/a/2249738/1407622
@@ -105,10 +110,50 @@ void QKDProcessor::simpleDumb(const Measurements measurements)
     file.open(QIODevice::Truncate|QIODevice::WriteOnly);
     QFile fileBase("simpleDumbBase.dat");
     fileBase.open(QIODevice::Truncate|QIODevice::WriteOnly);
+    QFile fileProduct("simpleDumbProduct.dat");
+    fileProduct.open(QIODevice::Truncate|QIODevice::WriteOnly);
+    QFile fileText("plotData.dat");
+    fileText.open(QIODevice::Truncate|QIODevice::WriteOnly|QIODevice::Text);
+    QTextStream outStream(&fileText);
+    QString sBits;
+    QTextStream outBits(&sBits);
+    QString sBases;
+    QTextStream outBases(&sBases);
+    QString sProduct;
+    QTextStream outProduct(&sProduct);
     quint8 bitcounter = 0;
     char bitbuffer = 0;
     char bitbufferBase = 0;
+
+    const size_t bufferSize = sizeof(char)*8;
+    typedef std::bitset<bufferSize> BitArray;
+    BitArray bits;
+    BitArray bases;
+    quint8 counter = 0;
+
     foreach(Measurement *measurement, measurements) {
+        bits[counter]  = measurement->bit;
+        bases[counter] = measurement->base;
+        counter++;
+        if(counter == bufferSize) {
+            outBits  << bits.to_ulong()  << "\n";
+            outBases << bases.to_ulong() << "\n";
+            unsigned long baseTemp = bases.to_ulong();
+            if(baseTemp % 2 == 0) {
+                baseTemp += 1;
+            }
+            unsigned long buffer = bits.to_ulong() * baseTemp;
+            char writeBuffer = (char)buffer;
+            //0qreal temp = - (qreal)(unsigned char)writeBuffer / (256*256);
+            // buffer = - qLn(temp)*256;
+            outProduct << QString::number(buffer % 256) << "\n";
+            fileProduct.write(&writeBuffer, 1);
+            bits.reset();
+            bases.reset();
+            counter = 0;
+        }
+
+
         if(measurement->bit) {
             bitbuffer |= (1 << bitcounter);
         }
@@ -124,8 +169,13 @@ void QKDProcessor::simpleDumb(const Measurements measurements)
             bitbufferBase = 0;
         }
     }
+
+    outStream << *outBits.string() << "\n\n" << *outBases.string() << "\n\n" << *outProduct.string();
+
     file.close();
     fileBase.close();
+    fileProduct.close();
+    fileText.close();
 }
 
 void QKDProcessor::setMeasurements(Measurements *measurements)
@@ -518,8 +568,10 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
             return;
         }
 
+        /*
         if(isMaster)
             simpleDumb(reorderedMeasurements.last());
+        */
 
         QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(), 1-removeRatio);
         emit logMessage(QString("finished! (%1 byte)").arg(finalKey.size()));
