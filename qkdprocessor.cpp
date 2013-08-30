@@ -7,7 +7,6 @@
 #include <QFile>
 #include <limits>
 #include <algorithm>
-#include <QTextStream>
 using std::max;
 using std::random_shuffle;
 
@@ -60,7 +59,7 @@ QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, c
     static const quint8 bitLimitSmall = sizeof(bufferTypeSmall)*8;
 
     bufferTypeSmall bufferBits = 0;
-    bufferTypeSmall bufferBase = 0;
+    bufferTypeSmall bufferBase = 1; // bufferBase must be odd (-> hash functions)
 
     QByteArray finalKey;
     // only cstrings and char can be added to QByteArrays: we choose char
@@ -79,9 +78,6 @@ QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, c
         pos++;
         if(pos == bitLimitSmall) {
             pos = 0;
-            if(bufferBase % 2 == 0) {
-                bufferBase += 1;
-            }
             bufferType temp = (bufferType)bufferBase*(bufferType)bufferBits;
             for(quint8 bitPos = 0; bitPos < bitCount; bitPos++) {
                 // http://stackoverflow.com/a/2249738/1407622
@@ -93,7 +89,7 @@ QByteArray QKDProcessor::privacyAmplification(const Measurements measurements, c
                     buffer = 0;
                 }
             }
-            bufferBase = 0;
+            bufferBase = 1;
             bufferBits = 0;
         }
     }
@@ -491,11 +487,6 @@ void QKDProcessor::incomingData(quint8 type, QVariant data)
                             arg(removeRatio*100), Qt::red);
             return;
         }
-
-        /*
-        if(isMaster)
-            simpleDumb(reorderedMeasurements.last());
-        */
 
         QByteArray finalKey = privacyAmplification(reorderedMeasurements.last(), 1-removeRatio);
         emit logMessage(QString("finished! (%1 byte)").arg(finalKey.size()));
